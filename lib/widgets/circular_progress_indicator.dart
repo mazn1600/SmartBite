@@ -56,7 +56,7 @@ class CustomCircularProgressIndicator extends StatelessWidget {
                   color: color,
                   size: size * 0.2,
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: TextStyle(
@@ -114,7 +114,8 @@ class CalorieCircularProgress extends StatelessWidget {
               value: progress.clamp(0.0, 1.0),
               strokeWidth: 6.0,
               backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
           // Center content

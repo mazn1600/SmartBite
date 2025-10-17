@@ -120,7 +120,7 @@ class _BMIDragDropState extends State<BMIDragDrop>
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Text('InBody data imported successfully!'),
         backgroundColor: AppColors.success,
       ),
@@ -134,7 +134,7 @@ class _BMIDragDropState extends State<BMIDragDrop>
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: [AppShadows.medium],
+        boxShadow: const [AppShadows.medium],
         border: Border.all(
           color: _isDragging ? AppColors.primary : AppColors.border,
           width: _isDragging ? 2 : 1,
@@ -144,7 +144,7 @@ class _BMIDragDropState extends State<BMIDragDrop>
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.monitor_weight,
                 color: AppColors.primary,
                 size: 24,
@@ -341,7 +341,7 @@ class InBodyDataSource extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.fitness_center,
                 color: AppColors.white,
                 size: 20,
@@ -367,7 +367,7 @@ class InBodyDataSource extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.fitness_center,
               color: AppColors.grey,
               size: 20,
@@ -393,7 +393,7 @@ class InBodyDataSource extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.fitness_center,
               color: AppColors.primary,
               size: 20,

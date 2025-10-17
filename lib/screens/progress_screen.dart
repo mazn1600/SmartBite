@@ -182,7 +182,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        boxShadow: [AppShadows.small],
+        boxShadow: const [AppShadows.small],
       ),
       child: Row(
         children: [
@@ -237,7 +237,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       decoration: BoxDecoration(
         color: AppColors.black,
         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: [AppShadows.medium],
+        boxShadow: const [AppShadows.medium],
       ),
       child: Row(
         children: [
@@ -245,7 +245,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
           Container(
             width: 80,
             height: 80,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.white,
               shape: BoxShape.circle,
             ),
@@ -322,7 +322,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-              boxShadow: [AppShadows.small],
+              boxShadow: const [AppShadows.small],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,13 +381,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Widget _buildBottomNavigation() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 10,
-            offset: const Offset(0, -2),
+            offset: Offset(0, -2),
           ),
         ],
       ),

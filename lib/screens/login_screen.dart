@@ -150,7 +150,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // TODO: Implement forgot password
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Forgot password feature coming soon!'),
@@ -211,7 +210,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          // TODO: Implement Google login
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Google login coming soon!'),
@@ -226,7 +224,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          // TODO: Implement Apple login
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Apple login coming soon!'),

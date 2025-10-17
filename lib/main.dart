@@ -13,11 +13,15 @@ import 'screens/meal_plan_screen.dart';
 import 'screens/food_search_screen.dart';
 import 'screens/store_locator_screen.dart';
 import 'screens/food_detail_screen.dart';
+import 'screens/scan_meal_screen.dart';
+import 'screens/barcode_scan_screen.dart';
+import 'screens/voice_log_screen.dart';
 import 'screens/progress_screen.dart';
 import 'services/auth_service.dart';
 import 'services/user_service.dart';
 import 'services/meal_recommendation_service.dart';
 import 'services/price_comparison_service.dart';
+import 'screens/settings_screen.dart';
 
 void main() {
   runApp(const SmartBiteApp());
@@ -145,6 +149,22 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/progress',
       builder: (context, state) => const ProgressScreen(),
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/scan-meal',
+      builder: (context, state) => const ScanMealScreen(),
+    ),
+    GoRoute(
+      path: '/barcode-scan',
+      builder: (context, state) => const BarcodeScanScreen(),
+    ),
+    GoRoute(
+      path: '/voice-log',
+      builder: (context, state) => const VoiceLogScreen(),
     ),
   ],
 );

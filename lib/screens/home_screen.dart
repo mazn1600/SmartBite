@@ -77,15 +77,18 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.all(AppSizes.lg),
       child: Row(
         children: [
-          // Profile picture
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.primary,
-            child: Text(
-              user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-              style: const TextStyle(
-                color: AppColors.white,
-                fontWeight: FontWeight.bold,
+          // Profile picture (tap to open profile)
+          GestureDetector(
+            onTap: () => context.push('/profile'),
+            child: CircleAvatar(
+              radius: 20,
+              backgroundColor: AppColors.primary,
+              child: Text(
+                user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -121,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        boxShadow: [AppShadows.small],
+        boxShadow: const [AppShadows.small],
       ),
       child: Row(
         children: [
@@ -212,8 +215,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           // Target calories with progress
-          CalorieCircularProgress(
-            eaten: 1200,
+          const CalorieCircularProgress(
+            eaten: 1200.0,
             target: 2000,
             burned: 500,
             size: 80,
@@ -249,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMacroNutrientBreakdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-      child: MacroNutrientGrid(
+      child: const MacroNutrientGrid(
         carbs: 160,
         carbsTarget: 225,
         protein: 80,
@@ -279,11 +282,11 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(AppSizes.radiusMd),
           ),
         ),
-        child: Row(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.refresh),
-            const SizedBox(width: AppSizes.sm),
+            Icon(Icons.refresh),
+            SizedBox(width: AppSizes.sm),
             Text(
               'Generate My Day',
               style: AppTextStyles.buttonLarge,
@@ -347,13 +350,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNavigation() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 10,
-            offset: const Offset(0, -2),
+            offset: Offset(0, -2),
           ),
         ],
       ),
@@ -394,7 +397,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context.go('/meal-plan');
               break;
             case 2:
-              // Add food item
+              _showAddOptions();
               break;
             case 3:
               context.go('/progress');
@@ -424,5 +427,87 @@ class _HomeScreenState extends State<HomeScreen> {
       'Dec'
     ];
     return '${date.day} ${months[date.month - 1]}';
+  }
+
+  void _showAddOptions() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppSizes.radiusXl)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSizes.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add to your day',
+                  style: AppTextStyles.h5.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.md),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.lightGreen,
+                    child: Icon(Icons.camera_alt, color: AppColors.primary),
+                  ),
+                  title: const Text('Scan Meal'),
+                  subtitle:
+                      const Text('Use camera to detect food and calories'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/scan-meal');
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.carbBlue,
+                    child:
+                        Icon(Icons.qr_code_scanner, color: AppColors.primary),
+                  ),
+                  title: const Text('Barcode Scan'),
+                  subtitle: const Text('Scan package barcode to log food'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/barcode-scan');
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.fatOrange,
+                    child: Icon(Icons.mic, color: AppColors.primary),
+                  ),
+                  title: const Text('Voice Log'),
+                  subtitle: const Text('Say what you ate to log quickly'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/voice-log');
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.greyLight,
+                    child: const Icon(Icons.search, color: AppColors.primary),
+                  ),
+                  title: const Text('Log Food'),
+                  subtitle: const Text('Search our database and add items'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/food-search');
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }

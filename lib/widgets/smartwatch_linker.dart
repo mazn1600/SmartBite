@@ -155,7 +155,7 @@ class _SmartwatchLinkerState extends State<SmartwatchLinker>
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: [AppShadows.medium],
+        boxShadow: const [AppShadows.medium],
         border: Border.all(
           color: widget.isConnected ? AppColors.success : AppColors.border,
           width: widget.isConnected ? 2 : 1,
@@ -325,7 +325,7 @@ class _SmartwatchLinkerState extends State<SmartwatchLinker>
             ...(_availableDevices.map((device) => Container(
                   margin: const EdgeInsets.only(bottom: AppSizes.sm),
                   child: ListTile(
-                    leading: Icon(
+                    leading: const Icon(
                       Icons.watch,
                       color: AppColors.primary,
                     ),

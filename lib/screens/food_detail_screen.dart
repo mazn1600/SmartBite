@@ -95,9 +95,9 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
     return Container(
       height: 250,
       width: double.infinity,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.lightGreen,
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(AppSizes.radiusXl),
           bottomRight: Radius.circular(AppSizes.radiusXl),
         ),
@@ -129,7 +129,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
               decoration: BoxDecoration(
                 color: AppColors.white,
                 borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                boxShadow: [AppShadows.medium],
+                boxShadow: const [AppShadows.medium],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSizes.radiusLg),
@@ -138,14 +138,14 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                         widget.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
-                          return Icon(
+                          return const Icon(
                             Icons.fastfood,
                             size: 80,
                             color: AppColors.primary,
                           );
                         },
                       )
-                    : Icon(
+                    : const Icon(
                         Icons.fastfood,
                         size: 80,
                         color: AppColors.primary,
@@ -360,13 +360,13 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
 
   Widget _buildBottomNavigation() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 10,
-            offset: const Offset(0, -2),
+            offset: Offset(0, -2),
           ),
         ],
       ),
@@ -430,7 +430,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               'Select Quantity',
               style: AppTextStyles.h5,
             ),
@@ -494,7 +494,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               'Select Serving Size',
               style: AppTextStyles.h5,
             ),
@@ -525,7 +525,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            const Text(
               'Add to Meal',
               style: AppTextStyles.h5,
             ),

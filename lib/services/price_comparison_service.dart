@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../models/store.dart';
-import '../models/food.dart';
 import '../constants/app_constants.dart';
 
 class PriceComparisonService extends ChangeNotifier {
@@ -405,17 +404,17 @@ class PriceComparisonService extends ChangeNotifier {
     return deals;
   }
 
-  void _setLoading(bool loading) {
+  void setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
   }
 
-  void _setError(String error) {
+  void setError(String error) {
     _error = error;
     notifyListeners();
   }
 
-  void _clearError() {
+  void clearError() {
     _error = null;
     notifyListeners();
   }

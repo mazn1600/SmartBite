@@ -18,7 +18,7 @@ class DateSelector extends StatelessWidget {
       return today.subtract(Duration(days: 3 - index));
     });
 
-    return Container(
+    return SizedBox(
       height: 60,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,

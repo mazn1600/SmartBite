@@ -28,7 +28,7 @@ class MacroNutrientCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        boxShadow: [AppShadows.small],
+        boxShadow: const [AppShadows.small],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

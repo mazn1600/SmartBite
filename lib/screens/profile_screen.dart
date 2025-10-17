@@ -89,7 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          const Icon(
             Icons.person_outline,
             size: 80,
             color: AppColors.grey,
@@ -102,7 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: AppSizes.lg),
           ElevatedButton(
             onPressed: () => context.go('/login'),
-            child: Text('Go to Login'),
+            child: const Text('Go to Login'),
           ),
         ],
       ),
@@ -131,9 +131,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildHeader(User user) {
     return Container(
       padding: const EdgeInsets.all(AppSizes.lg),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.primary,
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(AppSizes.radiusXl),
           bottomRight: Radius.circular(AppSizes.radiusXl),
         ),
@@ -154,17 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _isEditing = !_isEditing;
-                  });
-                },
-                icon: Icon(
-                  _isEditing ? Icons.close : Icons.edit,
-                  color: AppColors.white,
-                ),
-              ),
+              const SizedBox(width: 48),
             ],
           ),
           const SizedBox(height: AppSizes.lg),
@@ -205,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: [AppShadows.medium],
+        boxShadow: const [AppShadows.medium],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildMetricCard('BMI', '${user.bmi.toStringAsFixed(1)}',
+                child: _buildMetricCard('BMI', '$user.bmi.toStringAsFixed(1)',
                     _getBMICategory(user.bmi)),
               ),
               const SizedBox(width: AppSizes.md),
@@ -327,17 +317,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: [AppShadows.medium],
+        boxShadow: const [AppShadows.medium],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Personal Information',
-            style: AppTextStyles.h5.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Personal Information',
+                style: AppTextStyles.h5.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _isEditing = !_isEditing;
+                  });
+                },
+                icon: Icon(
+                  _isEditing ? Icons.close : Icons.edit,
+                  color: AppColors.primary,
+                ),
+                tooltip: _isEditing ? 'Close Editing' : 'Edit',
+              ),
+            ],
           ),
           const SizedBox(height: AppSizes.lg),
           if (_isEditing) ...[
@@ -437,14 +444,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     setState(() => _isEditing = false);
                     _initializeControllers();
                   },
-                  child: Text('Cancel'),
+                  child: const Text('Cancel'),
                 ),
               ),
               const SizedBox(width: AppSizes.md),
               Expanded(
                 child: ElevatedButton(
                   onPressed: _saveProfile,
-                  child: Text('Save'),
+                  child: const Text('Save'),
                 ),
               ),
             ],
@@ -501,7 +508,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: [AppShadows.medium],
+        boxShadow: const [AppShadows.medium],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -580,7 +587,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             'Edit Preferences',
             Icons.settings,
             () {
-              // TODO: Navigate to preferences screen
+              context.push('/settings');
             },
           ),
           const SizedBox(height: AppSizes.md),
@@ -634,13 +641,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildBottomNavigation() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 10,
-            offset: const Offset(0, -2),
+            offset: Offset(0, -2),
           ),
         ],
       ),
@@ -729,11 +736,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isEditing = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(BuildContext as BuildContext).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully!')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(BuildContext as BuildContext).showSnackBar(
         SnackBar(content: Text('Error updating profile: $e')),
       );
     }
@@ -743,12 +750,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Logout'),
-        content: Text('Are you sure you want to logout?'),
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
@@ -756,7 +763,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Provider.of<AuthService>(context, listen: false).logout();
               context.go('/login');
             },
-            child: Text('Logout', style: TextStyle(color: AppColors.error)),
+            child:
+                const Text('Logout', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),

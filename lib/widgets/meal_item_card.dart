@@ -27,7 +27,7 @@ class MealItemCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        boxShadow: [AppShadows.small],
+        boxShadow: const [AppShadows.small],
       ),
       child: Row(
         children: [
@@ -46,7 +46,7 @@ class MealItemCard extends StatelessWidget {
                       imageUrl!,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
-                        return Icon(
+                        return const Icon(
                           Icons.fastfood,
                           color: AppColors.primary,
                           size: 24,
@@ -54,7 +54,7 @@ class MealItemCard extends StatelessWidget {
                       },
                     ),
                   )
-                : Icon(
+                : const Icon(
                     Icons.fastfood,
                     color: AppColors.primary,
                     size: 24,
@@ -89,7 +89,7 @@ class MealItemCard extends StatelessWidget {
               if (onAdd != null)
                 IconButton(
                   onPressed: onAdd,
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.add_circle_outline,
                     color: AppColors.primary,
                   ),
@@ -97,7 +97,7 @@ class MealItemCard extends StatelessWidget {
               if (onCheck != null)
                 IconButton(
                   onPressed: onCheck,
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.check_circle_outline,
                     color: AppColors.success,
                   ),
@@ -105,7 +105,7 @@ class MealItemCard extends StatelessWidget {
               if (onRemove != null)
                 IconButton(
                   onPressed: onRemove,
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.cancel_outlined,
                     color: AppColors.error,
                   ),
@@ -159,7 +159,7 @@ class MealSection extends StatelessWidget {
                   const SizedBox(width: AppSizes.sm),
                   IconButton(
                     onPressed: onAddItem,
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.add_circle_outline,
                       color: AppColors.primary,
                     ),

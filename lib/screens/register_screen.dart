@@ -34,9 +34,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _selectedGender = AppConstants.genders.first;
   String _selectedActivityLevel = AppConstants.activityLevels.first;
   String _selectedGoal = AppConstants.goals.first;
-  List<String> _selectedAllergies = [];
-  List<String> _selectedHealthConditions = [];
-  List<String> _selectedFoodPreferences = [];
+  List<String> selectedAllergies = [];
+  List<String> selectedHealthConditions = [];
+  List<String> selectedFoodPreferences = [];
 
   // BMI and Smartwatch data
   double? _bmiFromInBody;
@@ -91,7 +91,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (!isValidHealthData) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(BuildContext as BuildContext).showSnackBar(
         const SnackBar(
           content: Text('Please enter valid health data'),
           backgroundColor: AppColors.error,
@@ -104,7 +104,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final emailExists =
         await databaseService.emailExists(_emailController.text.trim());
     if (emailExists) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(BuildContext as BuildContext).showSnackBar(
         const SnackBar(
           content: Text('Email already exists'),
           backgroundColor: AppColors.error,
@@ -123,9 +123,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       gender: _selectedGender,
       activityLevel: _selectedActivityLevel,
       goal: _selectedGoal,
-      allergies: _selectedAllergies,
-      healthConditions: _selectedHealthConditions,
-      foodPreferences: _selectedFoodPreferences,
+      allergies: selectedAllergies,
+      healthConditions: selectedHealthConditions,
+      foodPreferences: selectedFoodPreferences,
     );
 
     if (success && mounted) {
@@ -443,7 +443,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
-                InBodyDataSource(
+                const InBodyDataSource(
                   data: 'BMI: 23.5, Body Fat: 15.2%, Muscle Mass: 45.3kg',
                 ),
               ],
@@ -503,16 +503,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             spacing: AppSizes.sm,
             runSpacing: AppSizes.sm,
             children: AppConstants.healthConditions.map((condition) {
-              final isSelected = _selectedHealthConditions.contains(condition);
+              final isSelected = selectedHealthConditions.contains(condition);
               return FilterChip(
                 label: Text(_getHealthConditionDisplayName(condition)),
                 selected: isSelected,
                 onSelected: (selected) {
                   setState(() {
                     if (selected) {
-                      _selectedHealthConditions.add(condition);
+                      selectedHealthConditions.add(condition);
                     } else {
-                      _selectedHealthConditions.remove(condition);
+                      selectedHealthConditions.remove(condition);
                     }
                   });
                 },
@@ -534,16 +534,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             spacing: AppSizes.sm,
             runSpacing: AppSizes.sm,
             children: AppConstants.commonAllergens.map((allergen) {
-              final isSelected = _selectedAllergies.contains(allergen);
+              final isSelected = selectedAllergies.contains(allergen);
               return FilterChip(
                 label: Text(allergen.toUpperCase()),
                 selected: isSelected,
                 onSelected: (selected) {
                   setState(() {
                     if (selected) {
-                      _selectedAllergies.add(allergen);
+                      selectedAllergies.add(allergen);
                     } else {
-                      _selectedAllergies.remove(allergen);
+                      selectedAllergies.remove(allergen);
                     }
                   });
                 },
@@ -565,16 +565,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             spacing: AppSizes.sm,
             runSpacing: AppSizes.sm,
             children: AppConstants.foodCategories.map((category) {
-              final isSelected = _selectedFoodPreferences.contains(category);
+              final isSelected = selectedFoodPreferences.contains(category);
               return FilterChip(
                 label: Text(_getFoodCategoryDisplayName(category)),
                 selected: isSelected,
                 onSelected: (selected) {
                   setState(() {
                     if (selected) {
-                      _selectedFoodPreferences.add(category);
+                      selectedFoodPreferences.add(category);
                     } else {
-                      _selectedFoodPreferences.remove(category);
+                      selectedFoodPreferences.remove(category);
                     }
                   });
                 },
