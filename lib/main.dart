@@ -9,6 +9,7 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/health_preferences_screen.dart';
 import 'screens/meal_plan_screen.dart';
 import 'screens/food_search_screen.dart';
 import 'screens/store_locator_screen.dart';
@@ -119,6 +120,10 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/profile',
       builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: '/health-preferences',
+      builder: (context, state) => const HealthPreferencesScreen(),
     ),
     GoRoute(
       path: '/meal-plan',

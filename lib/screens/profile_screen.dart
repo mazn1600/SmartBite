@@ -211,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             children: [
               Expanded(
-                child: _buildMetricCard('BMI', '$user.bmi.toStringAsFixed(1)',
+                child: _buildMetricCard('BMI', '${user.bmi.toStringAsFixed(1)}',
                     _getBMICategory(user.bmi)),
               ),
               const SizedBox(width: AppSizes.md),
@@ -583,6 +583,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       margin: const EdgeInsets.all(AppSizes.lg),
       child: Column(
         children: [
+          _buildActionButton(
+            'Health Preferences',
+            Icons.health_and_safety,
+            () {
+              context.push('/health-preferences');
+            },
+          ),
+          const SizedBox(height: AppSizes.md),
           _buildActionButton(
             'Edit Preferences',
             Icons.settings,

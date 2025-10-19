@@ -2,10 +2,12 @@ class AppConstants {
   // App Information
   static const String appName = 'SmartBite';
   static const String appVersion = '1.0.0';
-  static const String appDescription = 'AI-powered personalized nutrition and meal planning app for Saudi Arabia';
+  static const String appDescription =
+      'AI-powered personalized nutrition and meal planning app for Saudi Arabia';
 
   // API Configuration
-  static const String baseUrl = 'https://api.smartbite.com'; // Replace with your actual API URL
+  static const String baseUrl =
+      'https://api.smartbite.com'; // Replace with your actual API URL
   static const String apiVersion = 'v1';
   static const Duration apiTimeout = Duration(seconds: 30);
 
@@ -60,6 +62,20 @@ class AppConstants {
     'desserts',
   ];
 
+  // Dietary Preferences
+  static const List<String> dietaryPreferences = [
+    'vegetarian',
+    'vegan',
+    'halal',
+    'low_carb',
+    'high_protein',
+    'keto',
+    'paleo',
+    'mediterranean',
+    'gluten_free',
+    'dairy_free',
+  ];
+
   // Common Allergens
   static const List<String> commonAllergens = [
     'gluten',
@@ -77,9 +93,10 @@ class AppConstants {
     'diabetes',
     'hypertension',
     'heart_disease',
+    'high_cholesterol',
+    'kidney_disease',
     'celiac_disease',
     'lactose_intolerance',
-    'kidney_disease',
     'liver_disease',
   ];
 
@@ -131,15 +148,20 @@ class AppConstants {
   static const Duration longAnimation = Duration(milliseconds: 500);
 
   // Error Messages
-  static const String networkErrorMessage = 'Network connection error. Please check your internet connection.';
-  static const String serverErrorMessage = 'Server error. Please try again later.';
-  static const String unknownErrorMessage = 'An unknown error occurred. Please try again.';
-  static const String validationErrorMessage = 'Please check your input and try again.';
+  static const String networkErrorMessage =
+      'Network connection error. Please check your internet connection.';
+  static const String serverErrorMessage =
+      'Server error. Please try again later.';
+  static const String unknownErrorMessage =
+      'An unknown error occurred. Please try again.';
+  static const String validationErrorMessage =
+      'Please check your input and try again.';
 
   // Success Messages
   static const String loginSuccessMessage = 'Login successful!';
   static const String registrationSuccessMessage = 'Registration successful!';
-  static const String profileUpdateSuccessMessage = 'Profile updated successfully!';
+  static const String profileUpdateSuccessMessage =
+      'Profile updated successfully!';
   static const String mealPlanSavedMessage = 'Meal plan saved successfully!';
 
   // Colors (you can customize these)

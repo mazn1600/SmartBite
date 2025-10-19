@@ -5,6 +5,7 @@ class User {
   final int age;
   final double height; // in cm
   final double weight; // in kg
+  final double? targetWeight; // in kg - optional
   final String gender;
   final String activityLevel;
   final String goal; // weight_loss, weight_gain, maintenance
@@ -21,6 +22,7 @@ class User {
     required this.age,
     required this.height,
     required this.weight,
+    this.targetWeight,
     required this.gender,
     required this.activityLevel,
     required this.goal,
@@ -89,6 +91,7 @@ class User {
       'age': age,
       'height': height,
       'weight': weight,
+      'targetWeight': targetWeight,
       'gender': gender,
       'activityLevel': activityLevel,
       'goal': goal,
@@ -108,6 +111,7 @@ class User {
       age: json['age'],
       height: json['height'].toDouble(),
       weight: json['weight'].toDouble(),
+      targetWeight: json['targetWeight']?.toDouble(),
       gender: json['gender'],
       activityLevel: json['activityLevel'],
       goal: json['goal'],
@@ -126,6 +130,7 @@ class User {
     int? age,
     double? height,
     double? weight,
+    double? targetWeight,
     String? gender,
     String? activityLevel,
     String? goal,
@@ -142,6 +147,7 @@ class User {
       age: age ?? this.age,
       height: height ?? this.height,
       weight: weight ?? this.weight,
+      targetWeight: targetWeight ?? this.targetWeight,
       gender: gender ?? this.gender,
       activityLevel: activityLevel ?? this.activityLevel,
       goal: goal ?? this.goal,

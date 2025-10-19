@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
@@ -24,12 +25,24 @@ class AuthService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(AppConstants.userTokenKey);
-      final userData = prefs.getString(AppConstants.userDataKey);
+      final userDataString = prefs.getString(AppConstants.userDataKey);
 
-      if (token != null && userData != null) {
+      debugPrint('AuthService: Loading user data...');
+      debugPrint('Token exists: ${token != null}');
+      debugPrint('User data exists: ${userDataString != null}');
+
+      if (token != null && userDataString != null) {
         _token = token;
-        _currentUser = User.fromJson(userData as Map<String, dynamic>);
+        // Parse the JSON string back to a Map
+        final userData = jsonDecode(userDataString) as Map<String, dynamic>;
+        _currentUser = User.fromJson(userData);
+        debugPrint(
+            'AuthService: User loaded successfully - ${_currentUser?.name}');
+        debugPrint(
+            'AuthService: User target calories - ${_currentUser?.targetCalories}');
         notifyListeners();
+      } else {
+        debugPrint('AuthService: No user data found in storage');
       }
     } catch (e) {
       debugPrint('Error loading user data: $e');
@@ -72,12 +85,14 @@ class AuthService extends ChangeNotifier {
     required int age,
     required double height,
     required double weight,
+    double? targetWeight,
     required String gender,
     required String activityLevel,
     required String goal,
     List<String> allergies = const [],
     List<String> healthConditions = const [],
     List<String> foodPreferences = const [],
+    List<String> dietaryPreferences = const [],
   }) async {
     _setLoading(true);
     _clearError();
@@ -93,12 +108,16 @@ class AuthService extends ChangeNotifier {
         age: age,
         height: height,
         weight: weight,
+        targetWeight: targetWeight,
         gender: gender,
         activityLevel: activityLevel,
         goal: goal,
         allergies: allergies,
         healthConditions: healthConditions,
-        foodPreferences: foodPreferences,
+        foodPreferences: [
+          ...foodPreferences,
+          ...dietaryPreferences
+        ], // Combine both lists
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -166,7 +185,7 @@ class AuthService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.userTokenKey, _token!);
     await prefs.setString(
-        AppConstants.userDataKey, _currentUser!.toJson().toString());
+        AppConstants.userDataKey, jsonEncode(_currentUser!.toJson()));
   }
 
   void _setLoading(bool loading) {

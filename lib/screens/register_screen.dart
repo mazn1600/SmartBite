@@ -29,6 +29,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _ageController = TextEditingController();
   final _heightController = TextEditingController();
   final _weightController = TextEditingController();
+  final _targetWeightController = TextEditingController();
 
   // Form data
   String _selectedGender = AppConstants.genders.first;
@@ -37,6 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   List<String> selectedAllergies = [];
   List<String> selectedHealthConditions = [];
   List<String> selectedFoodPreferences = [];
+  List<String> selectedDietaryPreferences = [];
 
   // BMI and Smartwatch data
   double? _bmiFromInBody;
@@ -52,6 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _ageController.dispose();
     _heightController.dispose();
     _weightController.dispose();
+    _targetWeightController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -120,12 +123,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       age: int.parse(_ageController.text),
       height: double.parse(_heightController.text),
       weight: double.parse(_weightController.text),
+      targetWeight: _targetWeightController.text.isNotEmpty
+          ? double.tryParse(_targetWeightController.text)
+          : null,
       gender: _selectedGender,
       activityLevel: _selectedActivityLevel,
       goal: _selectedGoal,
       allergies: selectedAllergies,
       healthConditions: selectedHealthConditions,
       foodPreferences: selectedFoodPreferences,
+      dietaryPreferences: selectedDietaryPreferences,
     );
 
     if (success && mounted) {
@@ -357,6 +364,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           const SizedBox(height: AppSizes.lg),
 
+          // Target Weight Field (show conditionally based on goal)
+          if (_selectedGoal == 'weight_loss' ||
+              _selectedGoal == 'weight_gain') ...[
+            TextFormField(
+              controller: _targetWeightController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText:
+                    'Target Weight ${_selectedGoal == 'weight_loss' ? '(Goal Weight)' : '(Target Weight)'}',
+                hintText: 'e.g., 70',
+                prefixIcon: const Icon(Icons.flag_outlined),
+                suffixText: 'kg',
+                helperText: _selectedGoal == 'weight_loss'
+                    ? 'What weight do you want to reach?'
+                    : 'What weight do you want to achieve?',
+              ),
+              validator: (value) {
+                if (value != null && value.isNotEmpty) {
+                  final targetWeight = double.tryParse(value);
+                  if (targetWeight == null ||
+                      targetWeight < 20 ||
+                      targetWeight > 300) {
+                    return 'Please enter a valid target weight (20-300 kg)';
+                  }
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSizes.lg),
+          ],
+
           // Gender Selection
           DropdownButtonFormField<String>(
             value: _selectedGender,
@@ -583,6 +621,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
               );
             }).toList(),
           ),
+          const SizedBox(height: AppSizes.lg),
+
+          // Dietary Preferences
+          Text(
+            'Dietary Preferences (Optional)',
+            style:
+                AppTextStyles.labelLarge.copyWith(color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: AppSizes.sm),
+          Wrap(
+            spacing: AppSizes.sm,
+            runSpacing: AppSizes.sm,
+            children: AppConstants.dietaryPreferences.map((preference) {
+              final isSelected =
+                  selectedDietaryPreferences.contains(preference);
+              return FilterChip(
+                label: Text(_getDietaryPreferenceDisplayName(preference)),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      selectedDietaryPreferences.add(preference);
+                    } else {
+                      selectedDietaryPreferences.remove(preference);
+                    }
+                  });
+                },
+                selectedColor: AppColors.info.withOpacity(0.2),
+                checkmarkColor: AppColors.info,
+              );
+            }).toList(),
+          ),
         ],
       ),
     );
@@ -626,12 +696,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return 'High Blood Pressure';
       case 'heart_disease':
         return 'Heart Disease';
+      case 'high_cholesterol':
+        return 'High Cholesterol';
+      case 'kidney_disease':
+        return 'Kidney Disease';
       case 'celiac_disease':
         return 'Celiac Disease';
       case 'lactose_intolerance':
         return 'Lactose Intolerance';
-      case 'kidney_disease':
-        return 'Kidney Disease';
       case 'liver_disease':
         return 'Liver Disease';
       default:
@@ -663,6 +735,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return 'Desserts';
       default:
         return category;
+    }
+  }
+
+  String _getDietaryPreferenceDisplayName(String preference) {
+    switch (preference) {
+      case 'vegetarian':
+        return 'Vegetarian';
+      case 'vegan':
+        return 'Vegan';
+      case 'halal':
+        return 'Halal';
+      case 'low_carb':
+        return 'Low-Carb';
+      case 'high_protein':
+        return 'High-Protein';
+      case 'keto':
+        return 'Keto';
+      case 'paleo':
+        return 'Paleo';
+      case 'mediterranean':
+        return 'Mediterranean';
+      case 'gluten_free':
+        return 'Gluten-Free';
+      case 'dairy_free':
+        return 'Dairy-Free';
+      default:
+        return preference;
     }
   }
 }

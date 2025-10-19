@@ -3,10 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_theme.dart';
 import '../services/auth_service.dart';
+import '../services/meal_generation_service.dart';
 import '../models/user.dart';
 import '../widgets/circular_progress_indicator.dart';
 import '../widgets/macro_nutrient_card.dart';
-import '../widgets/meal_item_card.dart';
 import '../widgets/date_selector.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,6 +19,32 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   DateTime selectedDate = DateTime.now();
   bool isTodayView = true;
+  List<Meal>? generatedMeals;
+  Set<String> eatenMealIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGeneratedMeals();
+  }
+
+  void _loadGeneratedMeals() {
+    // Load generated meals from meal plan screen
+    // For now, we'll generate them if they don't exist
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = authService.currentUser;
+
+      if (user != null && generatedMeals == null) {
+        final meals = MealGenerationService.generatePersonalizedMeals(user);
+        final adjustedMeals =
+            MealGenerationService.adjustForHealthConditions(meals, user);
+        setState(() {
+          generatedMeals = adjustedMeals;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,9 +84,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Macronutrient Breakdown
             _buildMacroNutrientBreakdown(),
-
-            // Generate My Day Button
-            _buildGenerateDayButton(),
 
             // Today Meals Section
             _buildTodayMeals(),
@@ -263,89 +286,408 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildGenerateDayButton() {
-    return Container(
-      margin: const EdgeInsets.all(AppSizes.lg),
-      child: ElevatedButton(
-        onPressed: () {
-          // Navigate to meal plan screen with generated meals
-          context.go('/meal-plan', extra: {'generateMeals': true});
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.white,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSizes.xl,
-            vertical: AppSizes.md,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-          ),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.refresh),
-            SizedBox(width: AppSizes.sm),
-            Text(
-              'Generate My Day',
-              style: AppTextStyles.buttonLarge,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildTodayMeals() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Today Meals',
+                    style: AppTextStyles.h5.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (generatedMeals != null && generatedMeals!.isNotEmpty)
+                    Text(
+                      '${eatenMealIds.length}/${generatedMeals!.length} completed',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                ],
+              ),
+              TextButton(
+                onPressed: () => context.go('/meal-plan'),
+                child: Text(
+                  'View All',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSizes.md),
+          if (generatedMeals != null && generatedMeals!.isNotEmpty) ...[
+            // Show generated meals
+            ...generatedMeals!
+                .take(2)
+                .map((meal) => _buildMealSummaryCard(meal)),
+            if (generatedMeals!.length > 2) ...[
+              const SizedBox(height: AppSizes.sm),
+              Center(
+                child: TextButton(
+                  onPressed: () => context.go('/meal-plan'),
+                  child: Text(
+                    '+ ${generatedMeals!.length - 2} more meals',
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ] else ...[
+            // Empty state
+            _buildEmptyMealsState(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMealSummaryCard(Meal meal) {
+    final isEaten = eatenMealIds.contains(meal.id);
+
+    return GestureDetector(
+      onTap: () => _showMealDetails(meal),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSizes.sm),
+        padding: const EdgeInsets.all(AppSizes.md),
+        decoration: BoxDecoration(
+          color:
+              isEaten ? AppColors.surface.withOpacity(0.7) : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          border: Border.all(
+              color: isEaten
+                  ? AppColors.success.withOpacity(0.3)
+                  : AppColors.primary.withOpacity(0.2)),
+          boxShadow: const [AppShadows.small],
+        ),
+        child: Row(
+          children: [
+            // Check Button
+            GestureDetector(
+              onTap: () => _toggleMealEaten(meal),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isEaten ? AppColors.success : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isEaten ? AppColors.success : AppColors.borderLight,
+                    width: 2,
+                  ),
+                ),
+                child: Icon(
+                  Icons.check,
+                  color: isEaten ? AppColors.white : AppColors.textSecondary,
+                  size: 18,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSizes.md),
+
+            // Meal Icon
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: isEaten
+                    ? AppColors.textSecondary.withOpacity(0.3)
+                    : AppColors.lightGreen,
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+              ),
+              child: Icon(
+                _getMealIcon(meal.mealType),
+                color: isEaten ? AppColors.textSecondary : AppColors.primary,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: AppSizes.md),
+
+            // Meal Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    meal.name,
+                    style: AppTextStyles.labelLarge.copyWith(
+                      color: isEaten
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      decoration: isEaten
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      decorationColor: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${meal.foods.length} items • ${meal.totalCalories} cal',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: isEaten
+                          ? AppColors.textSecondary.withOpacity(0.7)
+                          : AppColors.textSecondary,
+                      decoration: isEaten
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                      decorationColor: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Remove Button (only show if not eaten)
+            if (!isEaten)
+              IconButton(
+                onPressed: () => _removeMeal(meal),
+                icon: const Icon(
+                  Icons.cancel_outlined,
+                  color: AppColors.error,
+                  size: 24,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyMealsState() {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.restaurant_menu,
+            size: 48,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(height: AppSizes.md),
           Text(
-            'Today Meals',
-            style: AppTextStyles.h5.copyWith(
+            'No meals planned for today',
+            style: AppTextStyles.labelLarge.copyWith(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: AppSizes.sm),
+          Text(
+            'Generate your personalized meal plan to get started',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: AppSizes.md),
-          MealSection(
-            mealName: 'Breakfast',
-            calories: '75.95',
-            items: [
-              MealItem(
-                name: 'Saltine Crackers',
-                calories: '63',
-                onAdd: () {
-                  context.push('/food-detail', extra: {
-                    'foodName': 'Saltine Crackers',
-                    'imageUrl': '',
-                    'calories': 63.0,
-                    'carbs': 11.2,
-                    'protein': 1.4,
-                    'fat': 0.3,
-                  });
-                },
-                onCheck: () {},
-                onRemove: () {},
+          ElevatedButton(
+            onPressed: () =>
+                context.go('/meal-plan', extra: {'generateMeals': true}),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
               ),
-            ],
-            onAddItem: () {
-              context.push('/food-detail', extra: {
-                'foodName': 'Grilled Chicken Salad',
-                'imageUrl': '',
-                'calories': 63.0,
-                'carbs': 11.2,
-                'protein': 1.4,
-                'fat': 0.3,
-              });
-            },
+            ),
+            child: const Text('Generate Meals'),
           ),
         ],
       ),
     );
+  }
+
+  void _toggleMealEaten(Meal meal) {
+    setState(() {
+      if (eatenMealIds.contains(meal.id)) {
+        eatenMealIds.remove(meal.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${meal.name} marked as not eaten'),
+            backgroundColor: AppColors.info,
+          ),
+        );
+      } else {
+        eatenMealIds.add(meal.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${meal.name} marked as eaten! ✓'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    });
+  }
+
+  void _removeMeal(Meal meal) {
+    // TODO: Implement meal removal
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('${meal.name} removed from today\'s plan'),
+        backgroundColor: AppColors.error,
+      ),
+    );
+  }
+
+  void _showMealDetails(Meal meal) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppSizes.radiusXl)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSizes.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  meal.name,
+                  style: AppTextStyles.h5.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.sm),
+                Text(
+                  '${meal.totalCalories} calories • ${meal.foods.length} ingredients',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.lg),
+
+                // Ingredients List
+                Text(
+                  'Ingredients:',
+                  style: AppTextStyles.labelLarge.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.sm),
+                ...meal.foods
+                    .map((food) => Padding(
+                          padding: const EdgeInsets.only(bottom: AppSizes.xs),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.circle,
+                                  size: 6, color: AppColors.primary),
+                              const SizedBox(width: AppSizes.sm),
+                              Expanded(
+                                child: Text(
+                                  '${food.name} (${food.servingSize})',
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${food.calories} cal',
+                                style: AppTextStyles.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+
+                const SizedBox(height: AppSizes.lg),
+
+                // Nutrition Summary
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.md),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                    border: Border.all(color: AppColors.borderLight),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNutritionChip(
+                          'Protein',
+                          '${meal.foods.fold(0.0, (sum, f) => sum + f.protein).toInt()}g',
+                          AppColors.primary),
+                      _buildNutritionChip(
+                          'Carbs',
+                          '${meal.foods.fold(0.0, (sum, f) => sum + f.carbs).toInt()}g',
+                          AppColors.info),
+                      _buildNutritionChip(
+                          'Fat',
+                          '${meal.foods.fold(0.0, (sum, f) => sum + f.fat).toInt()}g',
+                          AppColors.accent),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: AppSizes.lg),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNutritionChip(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: AppTextStyles.labelLarge.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  IconData _getMealIcon(String mealType) {
+    switch (mealType) {
+      case 'breakfast':
+        return Icons.wb_sunny;
+      case 'lunch':
+        return Icons.wb_sunny_outlined;
+      case 'dinner':
+        return Icons.nights_stay;
+      case 'snack':
+        return Icons.local_cafe;
+      default:
+        return Icons.restaurant;
+    }
   }
 
   Widget _buildBottomNavigation() {
@@ -366,6 +708,7 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.grey,
+        currentIndex: 0, // Home tab selected
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),

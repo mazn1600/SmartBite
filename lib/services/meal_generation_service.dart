@@ -2,16 +2,80 @@ import '../models/user.dart';
 import '../models/meal_food.dart';
 
 class MealGenerationService {
+  // Generate a single meal for a specific meal type
+  static Meal? generateSingleMeal(User user, String mealType) {
+    final targetCalories = user.targetCalories;
+
+    // Validate target calories
+    if (targetCalories <= 0) {
+      print('ERROR: Invalid target calories: $targetCalories');
+      return null;
+    }
+
+    // Calculate calories for the specific meal type
+    int mealCalories;
+    switch (mealType) {
+      case 'breakfast':
+        mealCalories = (targetCalories * 0.25).round();
+        break;
+      case 'lunch':
+        mealCalories = (targetCalories * 0.35).round();
+        break;
+      case 'dinner':
+        mealCalories = (targetCalories * 0.30).round();
+        break;
+      case 'snack':
+        mealCalories = (targetCalories * 0.10).round();
+        break;
+      default:
+        mealCalories = (targetCalories * 0.25).round();
+    }
+
+    print('Generating single $mealType meal with $mealCalories calories');
+
+    // Generate the meal based on type
+    switch (mealType) {
+      case 'breakfast':
+        return _generateBreakfast(user, mealCalories);
+      case 'lunch':
+        return _generateLunch(user, mealCalories);
+      case 'dinner':
+        return _generateDinner(user, mealCalories);
+      case 'snack':
+        return _generateSnack(user, mealCalories);
+      default:
+        return _generateBreakfast(user, mealCalories);
+    }
+  }
+
   // Generate 4 meals based on user preferences and conditions
   static List<Meal> generatePersonalizedMeals(User user) {
     final meals = <Meal>[];
     final targetCalories = user.targetCalories;
+
+    // Debug: Print user data to help identify issues
+    print('Meal Generation Debug:');
+    print('User: ${user.name}');
+    print('Target Calories: $targetCalories');
+    print('Goal: ${user.goal}');
+    print('Activity Level: ${user.activityLevel}');
+    print('BMR: ${user.bmr}');
+    print('TDEE: ${user.tdee}');
+
+    // Validate target calories
+    if (targetCalories <= 0) {
+      print('ERROR: Invalid target calories: $targetCalories');
+      return meals; // Return empty list if invalid
+    }
 
     // Distribute calories across 4 meals
     final breakfastCalories = (targetCalories * 0.25).round();
     final lunchCalories = (targetCalories * 0.35).round();
     final dinnerCalories = (targetCalories * 0.30).round();
     final snackCalories = (targetCalories * 0.10).round();
+
+    print(
+        'Meal calories - Breakfast: $breakfastCalories, Lunch: $lunchCalories, Dinner: $dinnerCalories, Snack: $snackCalories');
 
     // Generate breakfast
     meals.add(_generateBreakfast(user, breakfastCalories));
