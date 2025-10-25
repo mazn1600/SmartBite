@@ -7,6 +7,7 @@ import '../services/meal_generation_service.dart';
 import '../models/user.dart';
 import '../models/meal_food.dart';
 import '../services/price_comparison_service.dart';
+import '../widgets/food_image_widget.dart';
 
 class MealPlanScreen extends StatefulWidget {
   const MealPlanScreen({super.key});
@@ -831,19 +832,11 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
+          FoodImageWidget(
+            imagePath: food.imageUrl, // Assuming MealFood has imageUrl property
             width: 44,
             height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.lightGreen,
-              borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-              boxShadow: const [AppShadows.small],
-            ),
-            child: const Icon(
-              Icons.fastfood,
-              color: AppColors.primary,
-              size: 22,
-            ),
+            borderRadius: BorderRadius.circular(AppSizes.radiusSm),
           ),
           const SizedBox(width: AppSizes.md),
           Expanded(
@@ -1093,9 +1086,11 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
     for (final food in meal.foods) {
       final priceId = mapFoodToPriceId(food.name);
       if (priceId == null) continue;
-      final options = priceService.findCheapestPrices(priceId);
-      if (options.isEmpty) continue;
-      final best = options.first;
+      final optionsResult = priceService.findCheapestPrices(priceId);
+      if (optionsResult.isError ||
+          optionsResult.data == null ||
+          optionsResult.data!.isEmpty) continue;
+      final best = optionsResult.data!.first;
       lines.add(
         Padding(
           padding: const EdgeInsets.only(bottom: AppSizes.sm),
@@ -1739,6 +1734,18 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     context.push('/barcode-scan');
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.lightGreen,
+                    child: Icon(Icons.add_box, color: AppColors.primary),
+                  ),
+                  title: const Text('Add Food'),
+                  subtitle: const Text('Add new food to database'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/add-food');
                   },
                 ),
                 ListTile(

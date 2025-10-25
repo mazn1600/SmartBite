@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import '../models/store.dart';
 import '../constants/app_constants.dart';
+import '../utils/error_handler.dart';
 
 class PriceComparisonService extends ChangeNotifier {
   List<Store> _stores = [];
@@ -211,99 +212,134 @@ class PriceComparisonService extends ChangeNotifier {
     ];
   }
 
-  // Find cheapest prices for a specific food
-  List<FoodPrice> findCheapestPrices(String foodId) {
-    List<FoodPrice> foodPrices =
-        _foodPrices.where((price) => price.foodId == foodId).toList();
+  // Find cheapest prices for a specific food with Result pattern
+  Result<List<FoodPrice>> findCheapestPrices(String foodId) {
+    try {
+      if (foodId.isEmpty) {
+        return Result.error('Food ID cannot be empty');
+      }
 
-    // Sort by effective price (considering sales)
-    foodPrices.sort((a, b) => a.effectivePrice.compareTo(b.effectivePrice));
-
-    return foodPrices;
-  }
-
-  // Find cheapest store for a list of foods
-  Map<String, dynamic> findCheapestStoreForMeal(List<String> foodIds) {
-    Map<String, double> storeTotalCosts = {};
-    Map<String, List<FoodPrice>> storeFoodPrices = {};
-
-    // Calculate total cost for each store
-    for (String foodId in foodIds) {
-      List<FoodPrice> prices =
+      List<FoodPrice> foodPrices =
           _foodPrices.where((price) => price.foodId == foodId).toList();
 
-      for (FoodPrice price in prices) {
-        if (!storeTotalCosts.containsKey(price.storeId)) {
-          storeTotalCosts[price.storeId] = 0.0;
-          storeFoodPrices[price.storeId] = [];
-        }
-
-        storeTotalCosts[price.storeId] =
-            storeTotalCosts[price.storeId]! + price.effectivePrice;
-        storeFoodPrices[price.storeId]!.add(price);
+      if (foodPrices.isEmpty) {
+        return Result.error('No prices found for this food item');
       }
+
+      // Sort by effective price (considering sales)
+      foodPrices.sort((a, b) => a.effectivePrice.compareTo(b.effectivePrice));
+
+      return Result.success(foodPrices);
+    } catch (e) {
+      return Result.error('Error finding cheapest prices: ${e.toString()}');
     }
-
-    // Find cheapest store
-    String? cheapestStoreId;
-    double minCost = double.infinity;
-
-    storeTotalCosts.forEach((storeId, cost) {
-      if (cost < minCost) {
-        minCost = cost;
-        cheapestStoreId = storeId;
-      }
-    });
-
-    if (cheapestStoreId == null) {
-      return {
-        'store': null,
-        'totalCost': 0.0,
-        'foodPrices': [],
-        'savings': 0.0,
-      };
-    }
-
-    // Calculate savings compared to most expensive store
-    double maxCost = storeTotalCosts.values.reduce((a, b) => a > b ? a : b);
-    double savings = maxCost - minCost;
-
-    return {
-      'store': _stores.firstWhere((store) => store.id == cheapestStoreId),
-      'totalCost': minCost,
-      'foodPrices': storeFoodPrices[cheapestStoreId]!,
-      'savings': savings,
-    };
   }
 
-  // Find stores near user location
-  List<Store> findNearbyStores(
-      double userLatitude, double userLongitude, double radiusKm) {
-    List<Store> nearbyStores = [];
-
-    for (Store store in _stores) {
-      double distance = _calculateDistance(
-        userLatitude,
-        userLongitude,
-        store.latitude,
-        store.longitude,
-      );
-
-      if (distance <= radiusKm) {
-        nearbyStores.add(store);
+  // Find cheapest store for a list of foods with Result pattern
+  Result<Map<String, dynamic>> findCheapestStoreForMeal(List<String> foodIds) {
+    try {
+      if (foodIds.isEmpty) {
+        return Result.error('Food IDs list cannot be empty');
       }
+
+      Map<String, double> storeTotalCosts = {};
+      Map<String, List<FoodPrice>> storeFoodPrices = {};
+
+      // Calculate total cost for each store
+      for (String foodId in foodIds) {
+        List<FoodPrice> prices =
+            _foodPrices.where((price) => price.foodId == foodId).toList();
+
+        for (FoodPrice price in prices) {
+          if (!storeTotalCosts.containsKey(price.storeId)) {
+            storeTotalCosts[price.storeId] = 0.0;
+            storeFoodPrices[price.storeId] = [];
+          }
+
+          storeTotalCosts[price.storeId] =
+              storeTotalCosts[price.storeId]! + price.effectivePrice;
+          storeFoodPrices[price.storeId]!.add(price);
+        }
+      }
+
+      if (storeTotalCosts.isEmpty) {
+        return Result.error('No prices found for any of the food items');
+      }
+
+      // Find cheapest store
+      String? cheapestStoreId;
+      double minCost = double.infinity;
+
+      storeTotalCosts.forEach((storeId, cost) {
+        if (cost < minCost) {
+          minCost = cost;
+          cheapestStoreId = storeId;
+        }
+      });
+
+      if (cheapestStoreId == null) {
+        return Result.error('Unable to determine cheapest store');
+      }
+
+      // Calculate savings compared to most expensive store
+      double maxCost = storeTotalCosts.values.reduce((a, b) => a > b ? a : b);
+      double savings = maxCost - minCost;
+
+      return Result.success({
+        'store': _stores.firstWhere((store) => store.id == cheapestStoreId),
+        'totalCost': minCost,
+        'foodPrices': storeFoodPrices[cheapestStoreId]!,
+        'savings': savings,
+      });
+    } catch (e) {
+      return Result.error('Error finding cheapest store: ${e.toString()}');
     }
+  }
 
-    // Sort by distance
-    nearbyStores.sort((a, b) {
-      double distanceA = _calculateDistance(
-          userLatitude, userLongitude, a.latitude, a.longitude);
-      double distanceB = _calculateDistance(
-          userLatitude, userLongitude, b.latitude, b.longitude);
-      return distanceA.compareTo(distanceB);
-    });
+  // Find stores near user location with Result pattern
+  Result<List<Store>> findNearbyStores(
+      double userLatitude, double userLongitude, double radiusKm) {
+    try {
+      if (radiusKm <= 0) {
+        return Result.error('Radius must be greater than 0');
+      }
 
-    return nearbyStores;
+      if (userLatitude < -90 || userLatitude > 90) {
+        return Result.error('Invalid latitude value');
+      }
+
+      if (userLongitude < -180 || userLongitude > 180) {
+        return Result.error('Invalid longitude value');
+      }
+
+      List<Store> nearbyStores = [];
+
+      for (Store store in _stores) {
+        double distance = _calculateDistance(
+          userLatitude,
+          userLongitude,
+          store.latitude,
+          store.longitude,
+        );
+
+        if (distance <= radiusKm) {
+          nearbyStores.add(store);
+        }
+      }
+
+      // Sort by distance
+      nearbyStores.sort((a, b) {
+        double distanceA = _calculateDistance(
+            userLatitude, userLongitude, a.latitude, a.longitude);
+        double distanceB = _calculateDistance(
+            userLatitude, userLongitude, b.latitude, b.longitude);
+        return distanceA.compareTo(distanceB);
+      });
+
+      return Result.success(nearbyStores);
+    } catch (e) {
+      return Result.error('Error finding nearby stores: ${e.toString()}');
+    }
   }
 
   // Calculate distance between two coordinates using Haversine formula
@@ -334,7 +370,12 @@ class PriceComparisonService extends ChangeNotifier {
     Map<String, List<FoodPrice>> comparison = {};
 
     for (String foodId in foodIds) {
-      comparison[foodId] = findCheapestPrices(foodId);
+      final result = findCheapestPrices(foodId);
+      if (result.isSuccess && result.data != null) {
+        comparison[foodId] = result.data!;
+      } else {
+        comparison[foodId] = [];
+      }
     }
 
     return comparison;

@@ -103,6 +103,10 @@ class User {
     };
   }
 
+  Map<String, dynamic> toMap() {
+    return toJson();
+  }
+
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'],
@@ -121,6 +125,10 @@ class User {
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
     );
+  }
+
+  factory User.fromMap(Map<String, dynamic> map) {
+    return User.fromJson(map);
   }
 
   User copyWith({

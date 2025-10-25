@@ -19,12 +19,26 @@ import 'screens/barcode_scan_screen.dart';
 import 'screens/voice_log_screen.dart';
 import 'screens/progress_screen.dart';
 import 'services/auth_service.dart';
+import 'services/supabase_auth_service.dart';
+import 'services/supabase_meal_plan_service.dart';
+import 'services/database_service.dart';
 import 'services/user_service.dart';
 import 'services/meal_recommendation_service.dart';
 import 'services/price_comparison_service.dart';
 import 'screens/settings_screen.dart';
+import 'screens/add_food_screen.dart';
+import 'config/supabase_config.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Supabase
+  await SupabaseConfig.initialize();
+
+  // Initialize local database
+  final databaseService = DatabaseService();
+  await databaseService.connect();
+
   runApp(const SmartBiteApp());
 }
 
@@ -36,6 +50,8 @@ class SmartBiteApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => SupabaseAuthService()),
+        ChangeNotifierProvider(create: (_) => SupabaseMealPlanService()),
         ChangeNotifierProvider(create: (_) => UserService()),
         ChangeNotifierProvider(create: (_) => MealRecommendationService()),
         ChangeNotifierProvider(create: (_) => PriceComparisonService()),
@@ -170,6 +186,10 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/voice-log',
       builder: (context, state) => const VoiceLogScreen(),
+    ),
+    GoRoute(
+      path: '/add-food',
+      builder: (context, state) => const AddFoodScreen(),
     ),
   ],
 );

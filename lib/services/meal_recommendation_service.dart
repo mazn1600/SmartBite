@@ -19,6 +19,27 @@ class MealRecommendationService extends ChangeNotifier {
     _initializeFoodDatabase();
   }
 
+  // Add new food to database
+  Future<void> addFood(Food food) async {
+    _foodDatabase.add(food);
+    notifyListeners();
+  }
+
+  // Remove food from database
+  Future<void> removeFood(String foodId) async {
+    _foodDatabase.removeWhere((food) => food.id == foodId);
+    notifyListeners();
+  }
+
+  // Update existing food
+  Future<void> updateFood(Food updatedFood) async {
+    final index = _foodDatabase.indexWhere((food) => food.id == updatedFood.id);
+    if (index != -1) {
+      _foodDatabase[index] = updatedFood;
+      notifyListeners();
+    }
+  }
+
   void _initializeFoodDatabase() {
     // Initialize with sample food data
     _foodDatabase = [
@@ -357,21 +378,6 @@ class MealRecommendationService extends ChangeNotifier {
   // Get foods by category
   List<Food> getFoodsByCategory(String category) {
     return _foodDatabase.where((food) => food.category == category).toList();
-  }
-
-  // Add new food to database
-  void addFood(Food food) {
-    _foodDatabase.add(food);
-    notifyListeners();
-  }
-
-  // Update existing food
-  void updateFood(Food updatedFood) {
-    int index = _foodDatabase.indexWhere((food) => food.id == updatedFood.id);
-    if (index != -1) {
-      _foodDatabase[index] = updatedFood;
-      notifyListeners();
-    }
   }
 
   // Delete food from database

@@ -14,7 +14,7 @@ class Food {
   final Map<String, double> vitamins;
   final Map<String, double> minerals;
   final List<String> allergens;
-  final String imageUrl;
+  final String imageUrl; // Can be local file path or URL
   final String recipeInstructions;
   final int preparationTime; // in minutes
   final int servings;
@@ -73,7 +73,8 @@ class Food {
 
   // Check if food contains allergens
   bool containsAllergen(String allergen) {
-    return allergens.any((a) => a.toLowerCase().contains(allergen.toLowerCase()));
+    return allergens
+        .any((a) => a.toLowerCase().contains(allergen.toLowerCase()));
   }
 
   Map<String, dynamic> toJson() {
@@ -103,6 +104,10 @@ class Food {
     };
   }
 
+  Map<String, dynamic> toMap() {
+    return toJson();
+  }
+
   factory Food.fromJson(Map<String, dynamic> json) {
     return Food(
       id: json['id'],
@@ -128,5 +133,9 @@ class Food {
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
     );
+  }
+
+  factory Food.fromMap(Map<String, dynamic> map) {
+    return Food.fromJson(map);
   }
 }

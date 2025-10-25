@@ -44,6 +44,10 @@ class MealFood {
     };
   }
 
+  Map<String, dynamic> toMap() {
+    return toJson();
+  }
+
   factory MealFood.fromJson(Map<String, dynamic> json) {
     return MealFood(
       id: json['id'],
@@ -59,5 +63,9 @@ class MealFood {
       category: json['category'],
       imageUrl: json['imageUrl'],
     );
+  }
+
+  factory MealFood.fromMap(Map<String, dynamic> map) {
+    return MealFood.fromJson(map);
   }
 }

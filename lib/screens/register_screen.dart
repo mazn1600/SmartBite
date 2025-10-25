@@ -3,10 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_theme.dart';
 import '../constants/app_constants.dart';
+import '../services/supabase_auth_service.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../widgets/bmi_drag_drop.dart';
 import '../widgets/smartwatch_linker.dart';
+import '../utils/validators.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -80,70 +82,134 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    try {
+      if (!_formKey.currentState!.validate()) return;
 
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final databaseService = DatabaseService();
+      final authService =
+          Provider.of<SupabaseAuthService>(context, listen: false);
+      final databaseService = DatabaseService();
 
-    // Validate health data
-    final isValidHealthData = await databaseService.validateHealthData(
-      age: int.parse(_ageController.text),
-      height: double.parse(_heightController.text),
-      weight: double.parse(_weightController.text),
-      gender: _selectedGender,
-    );
-
-    if (!isValidHealthData) {
-      ScaffoldMessenger.of(BuildContext as BuildContext).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter valid health data'),
-          backgroundColor: AppColors.error,
-        ),
+      // Validate health data
+      final isValidHealthData = await databaseService.validateHealthData(
+        age: int.parse(_ageController.text),
+        height: double.parse(_heightController.text),
+        weight: double.parse(_weightController.text),
+        gender: _selectedGender,
       );
-      return;
-    }
 
-    // Check if email exists
-    final emailExists =
-        await databaseService.emailExists(_emailController.text.trim());
-    if (emailExists) {
-      ScaffoldMessenger.of(BuildContext as BuildContext).showSnackBar(
-        const SnackBar(
-          content: Text('Email already exists'),
-          backgroundColor: AppColors.error,
-        ),
+      if (!isValidHealthData) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enter valid health data'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Check if email exists
+      final emailExists =
+          await databaseService.emailExists(_emailController.text.trim());
+      if (emailExists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email already exists'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Prepare user data for Supabase
+      final userData = {
+        'first_name': _nameController.text.trim().split(' ').first,
+        'last_name': _nameController.text.trim().split(' ').length > 1
+            ? _nameController.text.trim().split(' ').skip(1).join(' ')
+            : '',
+        'age': int.parse(_ageController.text),
+        'height': double.parse(_heightController.text),
+        'weight': double.parse(_weightController.text),
+        'gender': _selectedGender,
+        'activity_level': _selectedActivityLevel,
+        'goal': _selectedGoal,
+        'dietary_preferences': selectedDietaryPreferences,
+        'allergies': selectedAllergies,
+        'health_conditions': selectedHealthConditions,
+      };
+
+      // Sign up with Supabase (user is automatically logged in after signup)
+      final result = await authService.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        userData: userData,
       );
-      return;
-    }
 
-    final success = await authService.register(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-      name: _nameController.text.trim(),
-      age: int.parse(_ageController.text),
-      height: double.parse(_heightController.text),
-      weight: double.parse(_weightController.text),
-      targetWeight: _targetWeightController.text.isNotEmpty
-          ? double.tryParse(_targetWeightController.text)
-          : null,
-      gender: _selectedGender,
-      activityLevel: _selectedActivityLevel,
-      goal: _selectedGoal,
-      allergies: selectedAllergies,
-      healthConditions: selectedHealthConditions,
-      foodPreferences: selectedFoodPreferences,
-      dietaryPreferences: selectedDietaryPreferences,
-    );
+      if (mounted) {
+        if (result.isSuccess) {
+          // Create user profile in database
+          await authService.createUserProfile(userData);
 
-    if (success && mounted) {
-      context.go('/home');
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authService.error ?? 'Registration failed'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+          // Also register in local AuthService for compatibility with home screen
+          final localAuthService =
+              Provider.of<AuthService>(context, listen: false);
+          await localAuthService.register(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            name: _nameController.text.trim(),
+            age: int.parse(_ageController.text),
+            height: double.parse(_heightController.text),
+            weight: double.parse(_weightController.text),
+            targetWeight: _targetWeightController.text.isNotEmpty
+                ? double.tryParse(_targetWeightController.text)
+                : null,
+            gender: _selectedGender,
+            activityLevel: _selectedActivityLevel,
+            goal: _selectedGoal,
+            allergies: selectedAllergies,
+            healthConditions: selectedHealthConditions,
+            foodPreferences: selectedFoodPreferences,
+            dietaryPreferences: selectedDietaryPreferences,
+          );
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Welcome to SmartBite! Your account has been created.'),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Navigate to home (user is already logged in)
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              context.go('/home');
+            }
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.error ?? 'Registration failed'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      print('Registration error: $e');
     }
   }
 
@@ -228,11 +294,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hintText: 'Enter your email',
               prefixIcon: Icon(Icons.email_outlined),
             ),
-            validator: (value) {
-              final authService =
-                  Provider.of<AuthService>(context, listen: false);
-              return authService.validateEmail(value ?? '');
-            },
+            validator: (value) => Validators.email(value),
           ),
           const SizedBox(height: AppSizes.lg),
 
@@ -245,11 +307,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hintText: 'Enter your password',
               prefixIcon: Icon(Icons.lock_outlined),
             ),
-            validator: (value) {
-              final authService =
-                  Provider.of<AuthService>(context, listen: false);
-              return authService.validatePassword(value ?? '');
-            },
+            validator: (value) => Validators.password(value),
           ),
           const SizedBox(height: AppSizes.lg),
 
@@ -279,11 +337,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               hintText: 'Enter your full name',
               prefixIcon: Icon(Icons.person_outlined),
             ),
-            validator: (value) {
-              final authService =
-                  Provider.of<AuthService>(context, listen: false);
-              return authService.validateName(value ?? '');
-            },
+            validator: (value) => Validators.name(value),
           ),
         ],
       ),
@@ -319,9 +373,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
               suffixText: 'years',
             ),
             validator: (value) {
-              final authService =
-                  Provider.of<AuthService>(context, listen: false);
-              return authService.validateAge(int.tryParse(value ?? '') ?? 0);
+              if (value == null || value.isEmpty) {
+                return 'Age is required';
+              }
+              final age = int.tryParse(value);
+              if (age == null || age < 13 || age > 120) {
+                return 'Please enter a valid age between 13 and 120';
+              }
+              return null;
             },
           ),
           const SizedBox(height: AppSizes.lg),
@@ -337,10 +396,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
               suffixText: 'cm',
             ),
             validator: (value) {
-              final authService =
-                  Provider.of<AuthService>(context, listen: false);
-              return authService
-                  .validateHeight(double.tryParse(value ?? '') ?? 0);
+              if (value == null || value.isEmpty) {
+                return 'Height is required';
+              }
+              final height = double.tryParse(value);
+              if (height == null || height < 50 || height > 300) {
+                return 'Please enter a valid height between 50 and 300 cm';
+              }
+              return null;
             },
           ),
           const SizedBox(height: AppSizes.lg),
@@ -356,10 +419,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
               suffixText: 'kg',
             ),
             validator: (value) {
-              final authService =
-                  Provider.of<AuthService>(context, listen: false);
-              return authService
-                  .validateWeight(double.tryParse(value ?? '') ?? 0);
+              if (value == null || value.isEmpty) {
+                return 'Weight is required';
+              }
+              final weight = double.tryParse(value);
+              if (weight == null || weight < 20 || weight > 500) {
+                return 'Please enter a valid weight between 20 and 500 kg';
+              }
+              return null;
             },
           ),
           const SizedBox(height: AppSizes.lg),
@@ -481,8 +548,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
-                const InBodyDataSource(
-                  data: 'BMI: 23.5, Body Fat: 15.2%, Muscle Mass: 45.3kg',
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border:
+                        Border.all(color: AppColors.primary.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    'BMI: 23.5, Body Fat: 15.2%, Muscle Mass: 45.3kg',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ],
             ),

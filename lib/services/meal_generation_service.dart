@@ -1,175 +1,176 @@
 import '../models/user.dart';
 import '../models/meal_food.dart';
+import '../constants/app_constants.dart';
 
+/// Service for generating personalized meal recommendations
+/// Uses user preferences, health conditions, and nutritional goals
 class MealGenerationService {
-  // Generate a single meal for a specific meal type
-  static Meal? generateSingleMeal(User user, String mealType) {
-    final targetCalories = user.targetCalories;
+  static const Map<String, double> _mealCalorieDistribution = {
+    'breakfast': 0.25,
+    'lunch': 0.35,
+    'dinner': 0.30,
+    'snack': 0.10,
+  };
 
-    // Validate target calories
-    if (targetCalories <= 0) {
-      print('ERROR: Invalid target calories: $targetCalories');
+  static const List<String> _validMealTypes = [
+    'breakfast',
+    'lunch',
+    'dinner',
+    'snack',
+  ];
+
+  /// Generates a single meal for a specific meal type
+  /// Returns null if user data is invalid or meal type is unsupported
+  static Meal? generateSingleMeal(User user, String mealType) {
+    try {
+      // Validate inputs
+      if (!_isValidUser(user)) {
+        return null;
+      }
+
+      if (!_validMealTypes.contains(mealType)) {
+        return null;
+      }
+
+      final targetCalories = user.targetCalories;
+      final mealCalories =
+          (targetCalories * _mealCalorieDistribution[mealType]!).round();
+
+      return _generateMealByType(user, mealType, mealCalories);
+    } catch (e) {
+      print('Error generating single meal: $e');
       return null;
     }
-
-    // Calculate calories for the specific meal type
-    int mealCalories;
-    switch (mealType) {
-      case 'breakfast':
-        mealCalories = (targetCalories * 0.25).round();
-        break;
-      case 'lunch':
-        mealCalories = (targetCalories * 0.35).round();
-        break;
-      case 'dinner':
-        mealCalories = (targetCalories * 0.30).round();
-        break;
-      case 'snack':
-        mealCalories = (targetCalories * 0.10).round();
-        break;
-      default:
-        mealCalories = (targetCalories * 0.25).round();
-    }
-
-    print('Generating single $mealType meal with $mealCalories calories');
-
-    // Generate the meal based on type
-    switch (mealType) {
-      case 'breakfast':
-        return _generateBreakfast(user, mealCalories);
-      case 'lunch':
-        return _generateLunch(user, mealCalories);
-      case 'dinner':
-        return _generateDinner(user, mealCalories);
-      case 'snack':
-        return _generateSnack(user, mealCalories);
-      default:
-        return _generateBreakfast(user, mealCalories);
-    }
   }
 
-  // Generate 4 meals based on user preferences and conditions
+  /// Validates user data for meal generation
+  static bool _isValidUser(User user) {
+    return user.targetCalories > 0 &&
+        user.targetCalories <= 5000 && // Reasonable upper limit
+        user.age >= AppConstants.minAge &&
+        user.age <= AppConstants.maxAge;
+  }
+
+  /// Generates a complete set of personalized meals for a user
+  /// Returns empty list if user data is invalid
   static List<Meal> generatePersonalizedMeals(User user) {
-    final meals = <Meal>[];
-    final targetCalories = user.targetCalories;
+    try {
+      if (!_isValidUser(user)) {
+        return [];
+      }
 
-    // Debug: Print user data to help identify issues
-    print('Meal Generation Debug:');
-    print('User: ${user.name}');
-    print('Target Calories: $targetCalories');
-    print('Goal: ${user.goal}');
-    print('Activity Level: ${user.activityLevel}');
-    print('BMR: ${user.bmr}');
-    print('TDEE: ${user.tdee}');
+      final meals = <Meal>[];
 
-    // Validate target calories
-    if (targetCalories <= 0) {
-      print('ERROR: Invalid target calories: $targetCalories');
-      return meals; // Return empty list if invalid
+      // Generate each meal type
+      for (final mealType in _validMealTypes) {
+        final meal = generateSingleMeal(user, mealType);
+        if (meal != null) {
+          meals.add(meal);
+        }
+      }
+
+      return meals;
+    } catch (e) {
+      print('Error generating personalized meals: $e');
+      return [];
     }
-
-    // Distribute calories across 4 meals
-    final breakfastCalories = (targetCalories * 0.25).round();
-    final lunchCalories = (targetCalories * 0.35).round();
-    final dinnerCalories = (targetCalories * 0.30).round();
-    final snackCalories = (targetCalories * 0.10).round();
-
-    print(
-        'Meal calories - Breakfast: $breakfastCalories, Lunch: $lunchCalories, Dinner: $dinnerCalories, Snack: $snackCalories');
-
-    // Generate breakfast
-    meals.add(_generateBreakfast(user, breakfastCalories));
-
-    // Generate lunch
-    meals.add(_generateLunch(user, lunchCalories));
-
-    // Generate dinner
-    meals.add(_generateDinner(user, dinnerCalories));
-
-    // Generate snack
-    meals.add(_generateSnack(user, snackCalories));
-
-    return meals;
   }
 
+  /// Generates a meal based on type and target calories
+  static Meal _generateMealByType(
+      User user, String mealType, int targetCalories) {
+    switch (mealType) {
+      case 'breakfast':
+        return _generateBreakfast(user, targetCalories);
+      case 'lunch':
+        return _generateLunch(user, targetCalories);
+      case 'dinner':
+        return _generateDinner(user, targetCalories);
+      case 'snack':
+        return _generateSnack(user, targetCalories);
+      default:
+        return _generateBreakfast(user, targetCalories);
+    }
+  }
+
+  /// Generates a breakfast meal based on user preferences
   static Meal _generateBreakfast(User user, int targetCalories) {
     final foods = <MealFood>[];
 
-    // Base breakfast items based on preferences and restrictions
-    if (user.foodPreferences.contains('vegetables')) {
-      foods.add(MealFood(
-        id: '1',
-        name: 'Vegetable Omelet',
-        calories: (targetCalories * 0.6).round(),
-        protein: 25.0,
-        carbs: 8.0,
-        fat: 15.0,
-        fiber: 3.0,
-        sugar: 4.0,
-        sodium: 400.0,
-        servingSize: '1 large',
-        category: 'breakfast',
-        imageUrl: '',
-      ));
-    } else {
-      foods.add(MealFood(
-        id: '2',
-        name: 'Scrambled Eggs with Toast',
-        calories: (targetCalories * 0.6).round(),
-        protein: 20.0,
-        carbs: 15.0,
-        fat: 12.0,
-        fiber: 2.0,
-        sugar: 2.0,
-        sodium: 350.0,
-        servingSize: '1 serving',
-        category: 'breakfast',
-        imageUrl: '',
-      ));
-    }
+    try {
+      // Main protein source (60% of calories)
+      if (user.foodPreferences.contains('vegetables')) {
+        foods.add(_createMealFood(
+          id: 'breakfast_1',
+          name: 'Vegetable Omelet',
+          calories: (targetCalories * 0.6).round(),
+          protein: 25.0,
+          carbs: 8.0,
+          fat: 15.0,
+          fiber: 3.0,
+          sugar: 4.0,
+          sodium: 400.0,
+          servingSize: '1 large',
+          category: 'breakfast',
+        ));
+      } else {
+        foods.add(_createMealFood(
+          id: 'breakfast_2',
+          name: 'Scrambled Eggs with Toast',
+          calories: (targetCalories * 0.6).round(),
+          protein: 20.0,
+          carbs: 15.0,
+          fat: 12.0,
+          fiber: 2.0,
+          sugar: 2.0,
+          sodium: 350.0,
+          servingSize: '1 serving',
+          category: 'breakfast',
+        ));
+      }
 
-    // Add fruit if no allergies
-    if (!user.allergies.contains('citrus')) {
-      foods.add(MealFood(
-        id: '3',
-        name: 'Fresh Orange',
+      // Add fruit if no citrus allergies (20% of calories)
+      if (!user.allergies.contains('citrus')) {
+        foods.add(_createMealFood(
+          id: 'breakfast_3',
+          name: 'Fresh Orange',
+          calories: (targetCalories * 0.2).round(),
+          protein: 1.0,
+          carbs: 15.0,
+          fat: 0.2,
+          fiber: 3.0,
+          sugar: 12.0,
+          sodium: 0.0,
+          servingSize: '1 medium',
+          category: 'fruit',
+        ));
+      }
+
+      // Add healthy fat (20% of calories)
+      foods.add(_createMealFood(
+        id: 'breakfast_4',
+        name: 'Avocado Slice',
         calories: (targetCalories * 0.2).round(),
-        protein: 1.0,
-        carbs: 15.0,
-        fat: 0.2,
-        fiber: 3.0,
-        sugar: 12.0,
-        sodium: 0.0,
-        servingSize: '1 medium',
-        category: 'fruit',
-        imageUrl: '',
+        protein: 2.0,
+        carbs: 3.0,
+        fat: 8.0,
+        fiber: 2.0,
+        sugar: 0.5,
+        sodium: 5.0,
+        servingSize: '1/4 avocado',
+        category: 'healthy_fat',
       ));
+
+      return _createMeal(
+        id: 'breakfast_${DateTime.now().millisecondsSinceEpoch}',
+        name: 'Breakfast',
+        foods: foods,
+        mealType: 'breakfast',
+      );
+    } catch (e) {
+      print('Error generating breakfast: $e');
+      return _createDefaultMeal('breakfast', targetCalories);
     }
-
-    // Add healthy fat
-    foods.add(MealFood(
-      id: '4',
-      name: 'Avocado Slice',
-      calories: (targetCalories * 0.2).round(),
-      protein: 2.0,
-      carbs: 3.0,
-      fat: 8.0,
-      fiber: 2.0,
-      sugar: 0.5,
-      sodium: 5.0,
-      servingSize: '1/4 avocado',
-      category: 'healthy_fat',
-      imageUrl: '',
-    ));
-
-    return Meal(
-      id: 'breakfast_${DateTime.now().millisecondsSinceEpoch}',
-      name: 'Breakfast',
-      foods: foods,
-      totalCalories: foods.fold(0, (sum, food) => sum + food.calories),
-      mealType: 'breakfast',
-      createdAt: DateTime.now(),
-    );
   }
 
   static Meal _generateLunch(User user, int targetCalories) {
@@ -422,21 +423,100 @@ class MealGenerationService {
     );
   }
 
-  // Adjust meals based on health conditions
+  /// Adjusts meals based on user's health conditions
   static List<Meal> adjustForHealthConditions(List<Meal> meals, User user) {
-    if (user.healthConditions.contains('diabetes')) {
-      // Reduce high glycemic foods and increase fiber
-      // Note: In a real implementation, you'd need to create new MealFood objects
-      // since MealFood is immutable. For now, we'll skip this adjustment.
-    }
+    try {
+      if (user.healthConditions.contains('diabetes')) {
+        // Reduce high glycemic foods and increase fiber
+        // Note: In a real implementation, you'd need to create new MealFood objects
+        // since MealFood is immutable. For now, we'll skip this adjustment.
+      }
 
-    if (user.healthConditions.contains('hypertension')) {
-      // Reduce sodium content
-      // Note: In a real implementation, you'd need to create new MealFood objects
-      // since MealFood is immutable. For now, we'll skip this adjustment.
-    }
+      if (user.healthConditions.contains('hypertension')) {
+        // Reduce sodium content
+        // Note: In a real implementation, you'd need to create new MealFood objects
+        // since MealFood is immutable. For now, we'll skip this adjustment.
+      }
 
-    return meals;
+      return meals;
+    } catch (e) {
+      print('Error adjusting meals for health conditions: $e');
+      return meals;
+    }
+  }
+
+  /// Creates a MealFood object with proper validation
+  static MealFood _createMealFood({
+    required String id,
+    required String name,
+    required int calories,
+    required double protein,
+    required double carbs,
+    required double fat,
+    required double fiber,
+    required double sugar,
+    required double sodium,
+    required String servingSize,
+    required String category,
+    String imageUrl = '',
+  }) {
+    return MealFood(
+      id: id,
+      name: name,
+      calories: calories,
+      protein: protein,
+      carbs: carbs,
+      fat: fat,
+      fiber: fiber,
+      sugar: sugar,
+      sodium: sodium,
+      servingSize: servingSize,
+      category: category,
+      imageUrl: imageUrl,
+    );
+  }
+
+  /// Creates a Meal object with proper validation
+  static Meal _createMeal({
+    required String id,
+    required String name,
+    required List<MealFood> foods,
+    required String mealType,
+  }) {
+    return Meal(
+      id: id,
+      name: name,
+      foods: foods,
+      totalCalories: foods.fold(0, (sum, food) => sum + food.calories),
+      mealType: mealType,
+      createdAt: DateTime.now(),
+    );
+  }
+
+  /// Creates a default meal when generation fails
+  static Meal _createDefaultMeal(String mealType, int targetCalories) {
+    final foods = [
+      _createMealFood(
+        id: '${mealType}_default',
+        name: 'Basic $mealType',
+        calories: targetCalories,
+        protein: 20.0,
+        carbs: 30.0,
+        fat: 10.0,
+        fiber: 5.0,
+        sugar: 5.0,
+        sodium: 200.0,
+        servingSize: '1 serving',
+        category: mealType,
+      ),
+    ];
+
+    return _createMeal(
+      id: '${mealType}_default_${DateTime.now().millisecondsSinceEpoch}',
+      name: mealType.capitalize(),
+      foods: foods,
+      mealType: mealType,
+    );
   }
 }
 
@@ -461,4 +541,12 @@ class Meal {
   double get totalCarbs => foods.fold(0.0, (sum, food) => sum + food.carbs);
   double get totalFat => foods.fold(0.0, (sum, food) => sum + food.fat);
   double get totalFiber => foods.fold(0.0, (sum, food) => sum + food.fiber);
+}
+
+/// Extension for string utilities
+extension StringExtension on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return '${this[0].toUpperCase()}${substring(1).toLowerCase()}';
+  }
 }

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_theme.dart';
+import '../services/supabase_auth_service.dart';
 import '../services/auth_service.dart';
 import '../services/meal_generation_service.dart';
 import '../models/user.dart';
 import '../widgets/circular_progress_indicator.dart';
 import '../widgets/macro_nutrient_card.dart';
 import '../widgets/date_selector.dart';
+import '../widgets/food_image_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -50,15 +52,41 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Consumer<AuthService>(
-        builder: (context, authService, child) {
-          if (authService.currentUser == null) {
-            return const Center(
-              child: Text('Please log in to continue'),
+      body: Consumer2<SupabaseAuthService, AuthService>(
+        builder: (context, supabaseAuthService, authService, child) {
+          // Check Supabase auth first, then fallback to local auth
+          final isAuthenticated = supabaseAuthService.isAuthenticated ||
+              authService.currentUser != null;
+
+          if (!isAuthenticated) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.lock_outline,
+                      size: 64, color: AppColors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Please log in to continue',
+                    style: AppTextStyles.h5,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text('Go to Login'),
+                  ),
+                ],
+              ),
             );
           }
 
-          return _buildDashboard(authService.currentUser!);
+          // Use local user for now (until we migrate fully to Supabase user model)
+          final user = authService.currentUser;
+          if (user == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return _buildDashboard(user);
         },
       ),
       bottomNavigationBar: _buildBottomNavigation(),

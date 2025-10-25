@@ -50,6 +50,10 @@ class MealPlan {
     };
   }
 
+  Map<String, dynamic> toMap() {
+    return toJson();
+  }
+
   factory MealPlan.fromJson(Map<String, dynamic> json) {
     return MealPlan(
       id: json['id'],
@@ -69,6 +73,10 @@ class MealPlan {
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
     );
+  }
+
+  factory MealPlan.fromMap(Map<String, dynamic> map) {
+    return MealPlan.fromJson(map);
   }
 }
 

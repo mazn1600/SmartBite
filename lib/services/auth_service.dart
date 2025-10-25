@@ -1,17 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user.dart';
+import '../models/user.dart' as app_user;
 import '../constants/app_constants.dart';
+import '../utils/error_handler.dart';
 import 'database_service.dart';
 
 class AuthService extends ChangeNotifier {
-  User? _currentUser;
+  app_user.User? _currentUser;
   String? _token;
   bool _isLoading = false;
   String? _error;
+  final DatabaseService _databaseService = DatabaseService();
 
-  User? get currentUser => _currentUser;
+  app_user.User? get currentUser => _currentUser;
   String? get token => _token;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -35,7 +37,7 @@ class AuthService extends ChangeNotifier {
         _token = token;
         // Parse the JSON string back to a Map
         final userData = jsonDecode(userDataString) as Map<String, dynamic>;
-        _currentUser = User.fromJson(userData);
+        _currentUser = app_user.User.fromJson(userData);
         debugPrint(
             'AuthService: User loaded successfully - ${_currentUser?.name}');
         debugPrint(
@@ -54,20 +56,19 @@ class AuthService extends ChangeNotifier {
     _clearError();
 
     try {
-      final databaseService = DatabaseService();
-      final user = await databaseService.authenticateUser(email, password);
+      final user = await _databaseService.authenticateUser(email, password);
 
       if (user != null) {
+        _token = DateTime.now()
+            .millisecondsSinceEpoch
+            .toString(); // Generate a simple token
         _currentUser = user;
-        _token = 'jwt_token_${DateTime.now().millisecondsSinceEpoch}';
 
-        // Save to local storage
         await _saveUserData();
-
         _setLoading(false);
         return true;
       } else {
-        _setError('Invalid email or password');
+        _setError('Invalid email or password. Please try again.');
         _setLoading(false);
         return false;
       }
@@ -98,10 +99,16 @@ class AuthService extends ChangeNotifier {
     _clearError();
 
     try {
-      final databaseService = DatabaseService();
+      // Check if email already exists
+      final emailExists = await _databaseService.emailExists(email);
+      if (emailExists) {
+        _setError('An account already exists with this email address.');
+        _setLoading(false);
+        return false;
+      }
 
       // Create user object
-      final user = User(
+      final user = app_user.User(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         email: email,
         name: name,
@@ -122,12 +129,14 @@ class AuthService extends ChangeNotifier {
         updatedAt: DateTime.now(),
       );
 
-      // Register user in database
-      final success = await databaseService.registerUser(user, password);
+      // Save user to local database
+      final success = await _databaseService.registerUser(user, password);
 
       if (success) {
+        _token = DateTime.now()
+            .millisecondsSinceEpoch
+            .toString(); // Generate a simple token
         _currentUser = user;
-        _token = 'jwt_token_${DateTime.now().millisecondsSinceEpoch}';
 
         // Save to local storage
         await _saveUserData();
@@ -140,7 +149,20 @@ class AuthService extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _setError('Registration failed. Please try again.');
+      String errorMessage = 'Registration failed. Please try again.';
+
+      if (e.toString().contains('email-already-in-use')) {
+        errorMessage = 'An account already exists with this email address.';
+      } else if (e.toString().contains('weak-password')) {
+        errorMessage =
+            'Password is too weak. Please choose a stronger password.';
+      } else if (e.toString().contains('invalid-email')) {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (e.toString().contains('network')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      }
+
+      _setError(errorMessage);
       _setLoading(false);
       return false;
     }
@@ -152,27 +174,28 @@ class AuthService extends ChangeNotifier {
     _clearError();
 
     // Clear local storage
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(AppConstants.userTokenKey);
-    await prefs.remove(AppConstants.userDataKey);
-
+    await _clearUserData();
     notifyListeners();
   }
 
-  Future<void> updateProfile(User updatedUser) async {
+  Future<void> updateProfile(app_user.User updatedUser) async {
     if (_currentUser == null) return;
 
     _setLoading(true);
     _clearError();
 
     try {
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
+      // Update user in local database
+      final success = await _databaseService.updateUser(updatedUser);
 
-      _currentUser = updatedUser.copyWith(updatedAt: DateTime.now());
-      await _saveUserData();
-
-      _setLoading(false);
+      if (success) {
+        _currentUser = updatedUser.copyWith(updatedAt: DateTime.now());
+        await _saveUserData();
+        _setLoading(false);
+      } else {
+        _setError('Profile update failed. Please try again.');
+        _setLoading(false);
+      }
     } catch (e) {
       _setError('Profile update failed. Please try again.');
       _setLoading(false);
@@ -186,6 +209,29 @@ class AuthService extends ChangeNotifier {
     await prefs.setString(AppConstants.userTokenKey, _token!);
     await prefs.setString(
         AppConstants.userDataKey, jsonEncode(_currentUser!.toJson()));
+  }
+
+  Future<void> _clearUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.userTokenKey);
+    await prefs.remove(AppConstants.userDataKey);
+  }
+
+  Future<bool> resetPassword(String email) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // For now, just simulate password reset
+      // In a real app, you would send an email
+      debugPrint('Password reset requested for: $email');
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _setError('Password reset failed. Please try again.');
+      _setLoading(false);
+      return false;
+    }
   }
 
   void _setLoading(bool loading) {

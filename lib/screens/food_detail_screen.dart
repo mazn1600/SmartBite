@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../constants/app_theme.dart';
+import '../widgets/food_image_widget.dart';
 
 class FoodDetailScreen extends StatefulWidget {
   final String foodName;
@@ -121,7 +122,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
               ),
             ),
           ),
-          // Food image placeholder
+          // Food image
           Center(
             child: Container(
               width: 200,
@@ -133,23 +134,12 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                child: widget.imageUrl.isNotEmpty
-                    ? Image.network(
-                        widget.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.fastfood,
-                            size: 80,
-                            color: AppColors.primary,
-                          );
-                        },
-                      )
-                    : const Icon(
-                        Icons.fastfood,
-                        size: 80,
-                        color: AppColors.primary,
-                      ),
+                child: FoodImageWidget(
+                  imagePath: widget.imageUrl,
+                  width: 200,
+                  height: 200,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
