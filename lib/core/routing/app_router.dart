@@ -14,6 +14,7 @@ import '../../features/food/screens/barcode_scan_screen.dart';
 import '../../features/voice/screens/voice_log_screen.dart';
 import '../../features/progress/screens/progress_screen.dart';
 import '../../features/profile/screens/settings_screen.dart';
+import '../../features/profile/screens/profile_edit_screen.dart';
 import '../../features/food/screens/add_food_screen.dart';
 import '../../features/onboarding/screens/splash_screen.dart';
 
@@ -82,6 +83,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/profile/edit',
+      builder: (context, state) => const ProfileEditScreen(),
     ),
     GoRoute(
       path: '/scan-meal',

@@ -25,6 +25,7 @@ import 'features/profile/services/user_service.dart';
 import 'features/meal_planning/services/meal_recommendation_service.dart';
 import 'features/store/services/price_comparison_service.dart';
 import 'features/profile/screens/settings_screen.dart';
+import 'features/profile/screens/profile_edit_screen.dart';
 import 'features/food/screens/add_food_screen.dart';
 import 'core/config/supabase_config.dart';
 
@@ -211,6 +212,10 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/profile/edit',
+      builder: (context, state) => const ProfileEditScreen(),
     ),
     GoRoute(
       path: '/scan-meal',

@@ -15,56 +15,16 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isEditing = false;
-  final _formKey = GlobalKey<FormState>();
-
-  // Form controllers
-  late TextEditingController _nameController;
-  late TextEditingController _ageController;
-  late TextEditingController _heightController;
-  late TextEditingController _weightController;
-
-  String _selectedGender = 'male';
-  String _selectedActivityLevel = 'lightly_active';
-  String _selectedGoal = 'weight_loss';
-
   // Smartwatch connection state
   bool _isWatchConnected = false;
   String? _connectedWatchName;
 
+  // UI state
+  bool _isPersonalInfoExpanded = false;
+
   @override
   void initState() {
     super.initState();
-    _initializeControllers();
-  }
-
-  void _initializeControllers() {
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final user = authService.currentUser;
-
-    if (user != null) {
-      _nameController = TextEditingController(text: user.name);
-      _ageController = TextEditingController(text: user.age.toString());
-      _heightController = TextEditingController(text: user.height.toString());
-      _weightController = TextEditingController(text: user.weight.toString());
-      _selectedGender = user.gender;
-      _selectedActivityLevel = user.activityLevel;
-      _selectedGoal = user.goal;
-    } else {
-      _nameController = TextEditingController();
-      _ageController = TextEditingController();
-      _heightController = TextEditingController();
-      _weightController = TextEditingController();
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _ageController.dispose();
-    _heightController.dispose();
-    _weightController.dispose();
-    super.dispose();
   }
 
   @override
@@ -195,58 +155,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildHealthMetrics(User user) {
-    return Container(
-      margin: const EdgeInsets.all(AppSizes.lg),
-      padding: const EdgeInsets.all(AppSizes.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: const [AppShadows.medium],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Health Metrics',
-            style: AppTextStyles.h5.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: AppSizes.lg),
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricCard('BMI', '${user.bmi.toStringAsFixed(1)}',
-                    _getBMICategory(user.bmi)),
-              ),
-              const SizedBox(width: AppSizes.md),
-              Expanded(
-                child:
-                    _buildMetricCard('BMR', '${user.bmr.toInt()}', 'kcal/day'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.md),
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricCard(
-                    'TDEE', '${user.tdee.toInt()}', 'kcal/day'),
-              ),
-              const SizedBox(width: AppSizes.md),
-              Expanded(
-                child: _buildMetricCard(
-                    'Target', '${user.targetCalories.toInt()}', 'kcal/day'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMetricCard(String title, String value, String subtitle) {
     return Container(
       padding: const EdgeInsets.all(AppSizes.md),
@@ -276,89 +184,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textSecondary,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBMISection(User user) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-      child: BMIDragDrop(
-        initialBMI: user.bmi,
-        onBMIChanged: (bmi) {
-          // Update user's weight based on BMI change
-          final newWeight = bmi * ((user.height / 100) * (user.height / 100));
-          _weightController.text = newWeight.toStringAsFixed(1);
-        },
-      ),
-    );
-  }
-
-  Widget _buildSmartwatchSection() {
-    return Container(
-      margin: const EdgeInsets.all(AppSizes.lg),
-      child: SmartwatchLinker(
-        isConnected: _isWatchConnected,
-        deviceName: _connectedWatchName,
-        onConnect: () {
-          setState(() {
-            _isWatchConnected = true;
-            _connectedWatchName = 'Apple Watch Series 9'; // Default for demo
-          });
-        },
-        onDisconnect: () {
-          setState(() {
-            _isWatchConnected = false;
-            _connectedWatchName = null;
-          });
-        },
-      ),
-    );
-  }
-
-  Widget _buildPersonalInfo(User user) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-      padding: const EdgeInsets.all(AppSizes.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: const [AppShadows.medium],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Personal Information',
-                style: AppTextStyles.h5.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    _isEditing = !_isEditing;
-                  });
-                },
-                icon: Icon(
-                  _isEditing ? Icons.close : Icons.edit,
-                  color: AppColors.primary,
-                ),
-                tooltip: _isEditing ? 'Close Editing' : 'Edit',
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.lg),
-          if (_isEditing) ...[
-            _buildEditableForm(),
-          ] else ...[
-            _buildInfoDisplay(user),
-          ],
         ],
       ),
     );
@@ -402,139 +227,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildEditableForm() {
-    return Form(
-      key: _formKey,
-      child: Column(
-        children: [
-          _buildTextField(_nameController, 'Name', Icons.person),
-          const SizedBox(height: AppSizes.md),
-          Row(
-            children: [
-              Expanded(
-                  child: _buildTextField(_ageController, 'Age', Icons.cake)),
-              const SizedBox(width: AppSizes.md),
-              Expanded(
-                  child: _buildTextField(
-                      _heightController, 'Height (cm)', Icons.height)),
-            ],
-          ),
-          const SizedBox(height: AppSizes.md),
-          _buildTextField(
-              _weightController, 'Weight (kg)', Icons.monitor_weight),
-          const SizedBox(height: AppSizes.md),
-          _buildDropdown('Gender', _selectedGender, ['male', 'female'],
-              (value) {
-            setState(() => _selectedGender = value!);
-          }),
-          const SizedBox(height: AppSizes.md),
-          _buildDropdown('Activity Level', _selectedActivityLevel, [
-            'sedentary',
-            'lightly_active',
-            'moderately_active',
-            'very_active',
-            'extremely_active'
-          ], (value) {
-            setState(() => _selectedActivityLevel = value!);
-          }),
-          const SizedBox(height: AppSizes.md),
-          _buildDropdown('Goal', _selectedGoal,
-              ['weight_loss', 'weight_gain', 'maintenance'], (value) {
-            setState(() => _selectedGoal = value!);
-          }),
-          const SizedBox(height: AppSizes.lg),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    setState(() => _isEditing = false);
-                    _initializeControllers();
-                  },
-                  child: const Text('Cancel'),
-                ),
-              ),
-              const SizedBox(width: AppSizes.md),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _saveProfile,
-                  child: const Text('Save'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField(
-      TextEditingController controller, String label, IconData icon) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        ),
-      ),
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter $label';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildDropdown(String label, String value, List<String> items,
-      ValueChanged<String?> onChanged) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        ),
-      ),
-      items: items
-          .map((item) => DropdownMenuItem(
-                value: item,
-                child: Text(item.replaceAll('_', ' ').toUpperCase()),
-              ))
-          .toList(),
-      onChanged: onChanged,
-    );
-  }
-
-  Widget _buildPreferences(User user) {
-    return Container(
-      margin: const EdgeInsets.all(AppSizes.lg),
-      padding: const EdgeInsets.all(AppSizes.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: const [AppShadows.medium],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Preferences & Health',
-            style: AppTextStyles.h5.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: AppSizes.lg),
-          _buildPreferenceSection('Allergies', user.allergies, Icons.warning),
-          const SizedBox(height: AppSizes.md),
-          _buildPreferenceSection(
-              'Food Preferences', user.foodPreferences, Icons.favorite),
-        ],
-      ),
-    );
+  // Navigate to settings screen for editing profile
+  void _showEditProfileDialog(User user) {
+    context.push('/profile/edit');
   }
 
   Widget _buildPreferenceSection(
@@ -579,48 +274,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 .toList(),
           ),
       ],
-    );
-  }
-
-  Widget _buildActions() {
-    return Container(
-      margin: const EdgeInsets.all(AppSizes.lg),
-      child: Column(
-        children: [
-          _buildActionButton(
-            'Health Preferences',
-            Icons.health_and_safety,
-            () {
-              context.push('/health-preferences');
-            },
-          ),
-          const SizedBox(height: AppSizes.md),
-          _buildActionButton(
-            'Edit Preferences',
-            Icons.settings,
-            () {
-              context.push('/settings');
-            },
-          ),
-          const SizedBox(height: AppSizes.md),
-          _buildActionButton(
-            'Export Data',
-            Icons.download,
-            () {
-              // TODO: Implement data export
-            },
-          ),
-          const SizedBox(height: AppSizes.md),
-          _buildActionButton(
-            'Logout',
-            Icons.logout,
-            () {
-              _showLogoutDialog();
-            },
-            isDestructive: true,
-          ),
-        ],
-      ),
     );
   }
 
@@ -722,42 +375,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return 'Obese';
   }
 
-  void _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final authService = Provider.of<AuthService>(context, listen: false);
-    final currentUser = authService.currentUser;
-
-    if (currentUser == null) return;
-
-    try {
-      final updatedUser = currentUser.copyWith(
-        name: _nameController.text,
-        age: int.parse(_ageController.text),
-        height: double.parse(_heightController.text),
-        weight: double.parse(_weightController.text),
-        gender: _selectedGender,
-        activityLevel: _selectedActivityLevel,
-        goal: _selectedGoal,
-        updatedAt: DateTime.now(),
-      );
-
-      await authService.updateProfile(updatedUser);
-
-      setState(() {
-        _isEditing = false;
-      });
-
-      ScaffoldMessenger.of(BuildContext as BuildContext).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(BuildContext as BuildContext).showSnackBar(
-        SnackBar(content: Text('Error updating profile: $e')),
-      );
-    }
-  }
-
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -786,6 +403,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Expandable sections
   Widget _buildExpandableHealthMetrics(User user) {
     return Container(
+      key: const ValueKey('health_metrics_container'),
       margin: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -795,6 +413,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: const PageStorageKey('health_metrics_expansion'),
           leading: Container(
             padding: const EdgeInsets.all(AppSizes.sm),
             decoration: BoxDecoration(
@@ -816,6 +435,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textSecondary,
             ),
           ),
+          trailing:
+              const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSizes.lg),
@@ -861,6 +483,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildExpandablePersonalInfo(User user) {
     return Container(
+      key: const ValueKey('personal_info_container'),
       margin: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -870,6 +493,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: const PageStorageKey('personal_info_expansion'),
           leading: Container(
             padding: const EdgeInsets.all(AppSizes.sm),
             decoration: BoxDecoration(
@@ -891,22 +515,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textSecondary,
             ),
           ),
-          trailing: IconButton(
-            icon: Icon(
-              _isEditing ? Icons.close : Icons.edit,
-              color: AppColors.primary,
-            ),
-            onPressed: () {
-              setState(() {
-                _isEditing = !_isEditing;
-              });
-            },
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isPersonalInfoExpanded)
+                IconButton(
+                  icon: const Icon(Icons.edit, color: AppColors.primary),
+                  onPressed: () {
+                    _showEditProfileDialog(user);
+                  },
+                ),
+              Icon(
+                _isPersonalInfoExpanded
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,
+                color: AppColors.primary,
+              ),
+            ],
           ),
+          onExpansionChanged: (expanded) {
+            setState(() {
+              _isPersonalInfoExpanded = expanded;
+            });
+          },
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSizes.lg),
-              child:
-                  _isEditing ? _buildEditableForm() : _buildInfoDisplay(user),
+              child: _buildInfoDisplay(user),
             ),
           ],
         ),
@@ -916,6 +552,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildExpandableBMISection(User user) {
     return Container(
+      key: const ValueKey('bmi_section_container'),
       margin: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -925,6 +562,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: const PageStorageKey('bmi_section_expansion'),
           leading: Container(
             padding: const EdgeInsets.all(AppSizes.sm),
             decoration: BoxDecoration(
@@ -946,15 +584,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textSecondary,
             ),
           ),
+          trailing:
+              const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSizes.lg),
               child: BMIDragDrop(
                 initialBMI: user.bmi,
                 onBMIChanged: (bmi) {
-                  final newWeight =
-                      bmi * ((user.height / 100) * (user.height / 100));
-                  _weightController.text = newWeight.toStringAsFixed(1);
+                  // BMI changed - would update weight if editing
+                  // For now, this is just for visualization
                 },
               ),
             ),
@@ -966,6 +606,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildExpandableSmartwatchSection() {
     return Container(
+      key: const ValueKey('smartwatch_container'),
       margin: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -975,6 +616,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: const PageStorageKey('smartwatch_expansion'),
           leading: Container(
             padding: const EdgeInsets.all(AppSizes.sm),
             decoration: BoxDecoration(
@@ -1000,6 +642,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   : AppColors.textSecondary,
             ),
           ),
+          trailing:
+              const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSizes.lg),
@@ -1028,6 +673,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildExpandablePreferences(User user) {
     return Container(
+      key: const ValueKey('preferences_container'),
       margin: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -1037,6 +683,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: const PageStorageKey('preferences_expansion'),
           leading: Container(
             padding: const EdgeInsets.all(AppSizes.sm),
             decoration: BoxDecoration(
@@ -1058,12 +705,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textSecondary,
             ),
           ),
-          trailing: IconButton(
-            icon: const Icon(Icons.edit, color: AppColors.primary),
-            onPressed: () {
-              context.push('/health-preferences');
-            },
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: AppColors.primary),
+                onPressed: () {
+                  context.push('/health-preferences');
+                },
+              ),
+              const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
+            ],
           ),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSizes.lg),
@@ -1085,6 +739,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildExpandableActions() {
     return Container(
+      key: const ValueKey('actions_container'),
       margin: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -1094,6 +749,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          key: const PageStorageKey('actions_expansion'),
           leading: Container(
             padding: const EdgeInsets.all(AppSizes.sm),
             decoration: BoxDecoration(
@@ -1115,6 +771,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: AppColors.textSecondary,
             ),
           ),
+          trailing:
+              const Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSizes.lg),
