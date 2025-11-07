@@ -1,43 +1,80 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'constants/app_theme.dart';
-import 'constants/app_constants.dart';
-import 'screens/splash_screen.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/profile_screen.dart';
-import 'screens/health_preferences_screen.dart';
-import 'screens/meal_plan_screen.dart';
-import 'screens/food_search_screen.dart';
-import 'screens/store_locator_screen.dart';
-import 'screens/food_detail_screen.dart';
-import 'screens/scan_meal_screen.dart';
-import 'screens/barcode_scan_screen.dart';
-import 'screens/voice_log_screen.dart';
-import 'screens/progress_screen.dart';
-import 'services/auth_service.dart';
-import 'services/supabase_auth_service.dart';
-import 'services/supabase_meal_plan_service.dart';
-import 'services/database_service.dart';
-import 'services/user_service.dart';
-import 'services/meal_recommendation_service.dart';
-import 'services/price_comparison_service.dart';
-import 'screens/settings_screen.dart';
-import 'screens/add_food_screen.dart';
-import 'config/supabase_config.dart';
+import 'core/constants/app_theme.dart';
+import 'core/constants/app_constants.dart';
+import 'features/onboarding/screens/splash_screen.dart';
+import 'features/onboarding/screens/onboarding_screen.dart';
+import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/register_screen.dart';
+import 'features/home/screens/home_screen.dart';
+import 'features/profile/screens/profile_screen.dart';
+import 'features/profile/screens/health_preferences_screen.dart';
+import 'features/meal_planning/screens/meal_plan_screen.dart';
+import 'features/food/screens/food_search_screen.dart';
+import 'features/store/screens/store_locator_screen.dart';
+import 'features/food/screens/food_detail_screen.dart';
+import 'features/food/screens/scan_meal_screen.dart';
+import 'features/food/screens/barcode_scan_screen.dart';
+import 'features/voice/screens/voice_log_screen.dart';
+import 'features/progress/screens/progress_screen.dart';
+import 'features/auth/services/auth_service.dart';
+import 'features/meal_planning/services/meal_plan_service.dart';
+import 'shared/services/database_service.dart';
+import 'features/profile/services/user_service.dart';
+import 'features/meal_planning/services/meal_recommendation_service.dart';
+import 'features/store/services/price_comparison_service.dart';
+import 'features/profile/screens/settings_screen.dart';
+import 'features/food/screens/add_food_screen.dart';
+import 'core/config/supabase_config.dart';
+
+class AppScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // Disable glow effect and keep native scrolling
+    return child;
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Supabase
-  await SupabaseConfig.initialize();
+  // Initialize Supabase with error handling
+  try {
+    print('🔌 Initializing Supabase connection...');
+    await SupabaseConfig.initialize();
+    print('✅ Supabase initialized successfully');
+
+    // Test connection
+    final client = SupabaseConfig.client;
+    try {
+      final session = client.auth.currentSession;
+      if (session != null) {
+        print('✅ Supabase connection test successful (session found)');
+      } else {
+        print('✅ Supabase connection test successful (no active session)');
+      }
+    } catch (e) {
+      print('⚠️  Supabase connection test warning: $e');
+    }
+  } catch (e, stackTrace) {
+    print('❌ Failed to initialize Supabase: $e');
+    print('Stack trace: $stackTrace');
+    // Continue anyway - the app might work with cached data
+  }
 
   // Initialize local database
-  final databaseService = DatabaseService();
-  await databaseService.connect();
+  try {
+    final databaseService = DatabaseService();
+    await databaseService.connect();
+    print('✅ Local database connected');
+  } catch (e) {
+    print('⚠️  Local database connection warning: $e');
+  }
 
   runApp(const SmartBiteApp());
 }
@@ -50,8 +87,7 @@ class SmartBiteApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
-        ChangeNotifierProvider(create: (_) => SupabaseAuthService()),
-        ChangeNotifierProvider(create: (_) => SupabaseMealPlanService()),
+        ChangeNotifierProvider(create: (_) => MealPlanService()),
         ChangeNotifierProvider(create: (_) => UserService()),
         ChangeNotifierProvider(create: (_) => MealRecommendationService()),
         ChangeNotifierProvider(create: (_) => PriceComparisonService()),
@@ -103,6 +139,7 @@ class SmartBiteApp extends StatelessWidget {
               ),
             ),
             routerConfig: _router,
+            scrollBehavior: AppScrollBehavior(),
           );
         },
       ),
