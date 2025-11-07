@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import '../../../../core/constants/app_theme.dart';
 import '../../auth/services/auth_service.dart';
 import '../services/meal_generation_service.dart';
 import '../services/meal_plan_service.dart';
+import '../../food/services/food_analysis_service.dart';
 import '../../../../shared/models/user.dart';
 import '../../../../shared/models/meal_food.dart';
 import '../../../../shared/models/meal_plan.dart';
@@ -124,26 +126,26 @@ class _MealPlanScreenState extends State<MealPlanScreen>
       },
       child: SingleChildScrollView(
         key: const PageStorageKey<String>('meal_plan_scroll'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Date Selector
-            _buildDateSelector(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Date Selector
+          _buildDateSelector(),
 
-            // Date and Total Calories
-            _buildDateAndCalories(),
+          // Date and Total Calories
+          _buildDateAndCalories(),
 
-            // Generate Meals Button (if no meals)
-            if (generatedMeals == null || generatedMeals!.isEmpty) ...[
-              _buildGenerateMealsButton(),
-              const SizedBox(height: AppSizes.lg),
-            ],
-
-            // Meal Sections
-            _buildMealSections(),
-
-            const SizedBox(height: 100), // Space for bottom navigation
+          // Generate Meals Button (if no meals)
+          if (generatedMeals == null || generatedMeals!.isEmpty) ...[
+            _buildGenerateMealsButton(),
+            const SizedBox(height: AppSizes.lg),
           ],
+
+          // Meal Sections
+          _buildMealSections(),
+
+          const SizedBox(height: 100), // Space for bottom navigation
+        ],
         ),
       ),
     );
@@ -1863,11 +1865,60 @@ class _MealPlanScreenState extends State<MealPlanScreen>
       final user = authService.currentUser;
 
       if (user != null) {
-        // Generate a new meal for the specific type
-        final newMeal =
-            MealGenerationService.generateSingleMeal(user, mealType);
+        // Calculate target calories for this meal type
+        final Map<String, double> mealCalorieDistribution = {
+          'breakfast': 0.25,
+          'lunch': 0.35,
+          'dinner': 0.30,
+          'snack': 0.10,
+        };
+        final targetCalories = user.targetCalories;
+        final mealCalories = (targetCalories * 
+            (mealCalorieDistribution[mealType] ?? 0.25)).round();
+        
+        // Use async API method - no hardcoded fallback
+        final foodService = FoodAnalysisService();
+        final dishName = _generateDishNameForMealType(user, mealType, mealCalories);
+        
+        if (dishName.isEmpty) {
+          setState(() {
+            isLoading = false;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to generate dish name for $mealType'),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+          return;
+        }
 
-        if (newMeal != null) {
+        // Get diet types from user preferences
+        final dietTypes = _convertUserPreferencesToDietTypes(user);
+
+        // Call Food Analysis API
+        final result = await foodService.fullPipelineAnalysis(
+          dishName,
+          dietTypes: dietTypes,
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw TimeoutException('Request timeout', const Duration(seconds: 10));
+          },
+        );
+
+        if (result.isSuccess && result.data != null) {
+          // Convert API response to Meal
+          final newMeal = MealGenerationService.convertFullPipelineToMeal(
+            result.data!,
+            mealType,
+            mealCalories,
+            user,
+            dishName,
+          );
+
           setState(() {
             if (generatedMeals == null) {
               generatedMeals = [newMeal];
@@ -1878,12 +1929,29 @@ class _MealPlanScreenState extends State<MealPlanScreen>
             }
             isLoading = false;
           });
-          print('Successfully generated new $mealType meal');
+          print('Successfully generated new $mealType meal from API');
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Successfully regenerated $mealType'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          }
         } else {
           setState(() {
             isLoading = false;
           });
-          print('Failed to generate new meal');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to generate $mealType from API'),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          }
+          print('Failed to generate new meal from API: ${result.error}');
         }
       } else {
         setState(() {
@@ -1897,7 +1965,122 @@ class _MealPlanScreenState extends State<MealPlanScreen>
       setState(() {
         isLoading = false;
       });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error regenerating meal: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
+  }
+
+  // Helper methods for meal generation
+  String _generateDishNameForMealType(User user, String mealType, int targetCalories) {
+    final List<String> dishOptions = [];
+
+    switch (mealType) {
+      case 'breakfast':
+        if (user.foodPreferences.contains('protein') ||
+            user.goal == 'weight_loss') {
+          dishOptions.addAll([
+            'High Protein Breakfast Bowl',
+            'Protein-Packed Scrambled Eggs',
+            'Breakfast Protein Smoothie Bowl',
+          ]);
+        } else if (user.foodPreferences.contains('vegetables')) {
+          dishOptions.addAll([
+            'Vegetable Omelet',
+            'Mediterranean Breakfast Bowl',
+            'Green Breakfast Smoothie',
+          ]);
+        } else {
+          dishOptions.addAll([
+            'Classic Breakfast Platter',
+            'Balanced Morning Meal',
+            'Traditional Breakfast',
+          ]);
+        }
+        break;
+
+      case 'lunch':
+        if (user.foodPreferences.contains('protein')) {
+          dishOptions.addAll([
+            'Grilled Chicken Lunch',
+            'Protein-Rich Lunch Bowl',
+            'High Protein Mediterranean Lunch',
+          ]);
+        } else if (user.foodPreferences.contains('vegetables')) {
+          dishOptions.addAll([
+            'Mediterranean Quinoa Bowl',
+            'Vegetable Lunch Salad',
+            'Healthy Mediterranean Lunch',
+          ]);
+        } else {
+          dishOptions.addAll([
+            'Balanced Lunch Meal',
+            'Traditional Lunch Platter',
+            'Complete Lunch Bowl',
+          ]);
+        }
+        break;
+
+      case 'dinner':
+        if (user.foodPreferences.contains('protein')) {
+          dishOptions.addAll([
+            'Grilled Chicken Dinner',
+            'Protein-Rich Dinner Bowl',
+            'High Protein Mediterranean Dinner',
+          ]);
+        } else if (user.foodPreferences.contains('vegetables')) {
+          dishOptions.addAll([
+            'Mediterranean Dinner Bowl',
+            'Vegetable Dinner Platter',
+            'Healthy Mediterranean Dinner',
+          ]);
+        } else {
+          dishOptions.addAll([
+            'Balanced Dinner Meal',
+            'Traditional Dinner Platter',
+            'Complete Dinner Bowl',
+          ]);
+        }
+        break;
+
+      case 'snack':
+        dishOptions.addAll([
+          'Energy Snack Mix',
+          'Healthy Snack Bowl',
+          'Nutritious Snack Platter',
+        ]);
+        break;
+    }
+
+    if (dishOptions.isNotEmpty) {
+      return dishOptions[0];
+    }
+
+    return mealType.substring(0, 1).toUpperCase() + mealType.substring(1) + ' Meal';
+  }
+
+  List<String> _convertUserPreferencesToDietTypes(User user) {
+    final dietTypes = <String>[];
+
+    if (user.foodPreferences.contains('vegetarian') ||
+        user.foodPreferences.contains('vegetables')) {
+      dietTypes.add('vegetarian');
+    }
+
+    if (user.foodPreferences.contains('vegan')) {
+      dietTypes.add('vegan');
+    }
+
+    if (user.goal == 'weight_loss') {
+      dietTypes.add('low_calorie');
+    }
+
+    return dietTypes;
   }
 
   // ========== Meal Conversion Helpers ==========
@@ -1909,7 +2092,7 @@ class _MealPlanScreenState extends State<MealPlanScreen>
       // Try to parse serving size (e.g., "100g", "1 cup", "120g")
       double quantity = 100.0; // Default to 100g
       final servingSize = food.servingSize.toLowerCase();
-      if (servingSize.contains('g')) {
+      if (servingSize.isNotEmpty && servingSize.contains('g')) {
         final match = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(servingSize);
         if (match != null) {
           quantity = double.tryParse(match.group(1)!) ?? 100.0;
@@ -1920,17 +2103,22 @@ class _MealPlanScreenState extends State<MealPlanScreen>
         quantity = food.calories.toDouble();
       }
 
+      // Ensure required fields are not null or empty
+      final foodId = (food.id.isEmpty) ? _uuid.v4() : food.id;
+      final foodName = (food.name.isEmpty) ? 'Unknown Food' : food.name;
+      final foodCategory = (food.category.isEmpty) ? 'Unknown Category' : food.category;
+
       return MealItem(
         id: _uuid.v4(),
-        foodId: food.id,
-        foodName: food.name,
+        foodId: foodId,
+        foodName: foodName,
         quantity: quantity,
         calories: food.calories.toDouble(),
         protein: food.protein,
         carbs: food.carbs,
         fat: food.fat,
         cost: 0.0, // Will be calculated from price comparison if available
-        notes: food.category,
+        notes: foodCategory,
       );
     }).toList();
 
@@ -2014,7 +2202,8 @@ class _MealPlanScreenState extends State<MealPlanScreen>
   // ========== Meal Persistence Methods ==========
 
   /// Loads meals from Supabase for a specific date
-  Future<void> _loadMealsForDate(DateTime date) async {
+  /// [showLoading] - If true, shows loading indicator. Defaults to true.
+  Future<void> _loadMealsForDate(DateTime date, {bool showLoading = true}) async {
     final authService = Provider.of<AuthService>(context, listen: false);
     final user = authService.currentUser;
 
@@ -2026,41 +2215,68 @@ class _MealPlanScreenState extends State<MealPlanScreen>
         Provider.of<MealPlanService>(context, listen: false);
 
     try {
-      setState(() {
-        isLoading = true;
-      });
+      if (showLoading) {
+        setState(() {
+          isLoading = true;
+        });
+      }
 
       final result = await mealPlanService.getMealPlansByDate(user.id, date);
 
       if (result.isSuccess && result.data != null) {
         final mealPlans = result.data!;
-
+        
         // Convert MealPlans to Meals for display
         final meals =
             mealPlans.map((plan) => _convertMealPlanToMeal(plan)).toList();
 
         setState(() {
-          generatedMeals = meals.isNotEmpty ? meals : null;
-          isLoading = false;
+          // Only update if we got meals, otherwise keep current meals (don't clear on empty load)
+          if (meals.isNotEmpty) {
+            generatedMeals = meals;
+          } else if (showLoading) {
+            // Only clear if this was an explicit load (not a background reload)
+            generatedMeals = null;
+          }
+          // Otherwise, keep current generatedMeals if this was a background reload
+          if (showLoading) {
+            isLoading = false;
+          }
         });
       } else {
         setState(() {
-          generatedMeals = null;
-          isLoading = false;
+          // Only clear if this was an explicit load (not a background reload)
+          if (showLoading) {
+            generatedMeals = null;
+          }
+          // Otherwise, keep current generatedMeals if this was a background reload
+          if (showLoading) {
+            isLoading = false;
+          }
         });
       }
     } catch (e) {
       print('Error loading meals for date: $e');
-      setState(() {
-        isLoading = false;
-      });
+      // Don't clear meals on error - keep what's displayed
+      if (showLoading) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
   /// Saves generated meals to Supabase
   Future<void> _saveMealsToSupabase(
       List<Meal> meals, DateTime date, String userId) async {
-    if (meals.isEmpty) return;
+    if (meals.isEmpty) {
+      print('⚠️ No meals to save');
+      return;
+    }
+
+    print('💾 Starting to save ${meals.length} meals to Supabase...');
+    print('📅 Date: ${date.toIso8601String().split('T')[0]}');
+    print('👤 User ID: $userId');
 
     final mealPlanService =
         Provider.of<MealPlanService>(context, listen: false);
@@ -2071,10 +2287,16 @@ class _MealPlanScreenState extends State<MealPlanScreen>
 
     int successCount = 0;
     int failCount = 0;
+    List<String> errors = [];
 
     for (final meal in meals) {
       try {
+        print('💾 Saving meal: ${meal.name} (${meal.mealType})');
         final mealPlan = _convertMealToMealPlan(meal, date, userId);
+        
+        print('   📊 Meal has ${mealPlan.items.length} items');
+        print('   🔢 Total calories: ${mealPlan.totalCalories}');
+        
         final result = await mealPlanService.createMealPlan(
           userId: userId,
           date: date,
@@ -2085,13 +2307,19 @@ class _MealPlanScreenState extends State<MealPlanScreen>
 
         if (result.isSuccess) {
           successCount++;
+          print('   ✅ Successfully saved: ${meal.name}');
         } else {
           failCount++;
-          print('Failed to save meal ${meal.name}: ${result.error}');
+          final errorMsg = result.error ?? 'Unknown error';
+          errors.add('${meal.name}: $errorMsg');
+          print('   ❌ Failed to save ${meal.name}: $errorMsg');
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
         failCount++;
-        print('Error saving meal ${meal.name}: $e');
+        final errorMsg = 'Exception: ${e.toString()}';
+        errors.add('${meal.name}: $errorMsg');
+        print('   ❌ Error saving meal ${meal.name}: $e');
+        print('   Stack trace: $stackTrace');
       }
     }
 
@@ -2099,17 +2327,33 @@ class _MealPlanScreenState extends State<MealPlanScreen>
       isSaving = false;
     });
 
+    print('💾 Save complete: $successCount succeeded, $failCount failed');
+
     // Show feedback to user
     if (failCount > 0) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Saved $successCount meals. $failCount failed to save.',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Saved $successCount meals. $failCount failed.',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
+                ),
+                if (errors.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Errors: ${errors.take(2).join(", ")}',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.white),
+                    ),
+                  ),
+              ],
             ),
             backgroundColor: AppColors.warning,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -2117,7 +2361,7 @@ class _MealPlanScreenState extends State<MealPlanScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'All meals saved successfully!',
+            '✅ Successfully saved ${meals.length} meals to database!',
             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.white),
           ),
           backgroundColor: AppColors.success,
@@ -2128,67 +2372,91 @@ class _MealPlanScreenState extends State<MealPlanScreen>
   }
 
   void _generateMeals() async {
-    print('Starting meal generation...');
+    print('🍽️ Starting meal generation...');
     setState(() {
       isLoading = true;
     });
 
     try {
-      // Add timeout to prevent infinite loading
-      await Future.delayed(const Duration(seconds: 2)).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          print('Meal generation timed out!');
-          throw Exception('Meal generation timed out');
-        },
-      );
-
       final authService = Provider.of<AuthService>(context, listen: false);
       final user = authService.currentUser;
 
-      print('Meal Plan Screen Debug:');
-      print('User is null: ${user == null}');
-      if (user != null) {
-        print('User name: ${user.name}');
-        print('User target calories: ${user.targetCalories}');
-        print('User goal: ${user.goal}');
-        print('User activity level: ${user.activityLevel}');
-        print('User BMR: ${user.bmr}');
-        print('User TDEE: ${user.tdee}');
+      if (user == null) {
+        print('❌ ERROR: No user found for meal generation');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please log in to generate meals'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+        setState(() {
+          isLoading = false;
+        });
+        return;
       }
 
-      if (user != null) {
-        print('Generating meals...');
-        // Use async version to enable Food API integration
-        final meals =
-            await MealGenerationService.generatePersonalizedMealsAsync(user);
-        print('Generated ${meals.length} meals');
+      print('✅ User found: ${user.name}');
+      print('📊 Target calories: ${user.targetCalories}');
+      print('🎯 Goal: ${user.goal}');
+
+      // Generate meals with timeout
+      print('🔄 Generating meals...');
+      final meals = await MealGenerationService.generatePersonalizedMealsAsync(user)
+          .timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('⏱️ Meal generation timed out');
+          // Return empty list - no fallback meals
+          return <Meal>[];
+        },
+      );
+
+      print('✅ Generated ${meals.length} meals');
 
         if (meals.isEmpty) {
-          print('ERROR: No meals generated!');
+        print('❌ ERROR: No meals generated!');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to generate meals. Please try again.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
           setState(() {
             isLoading = false;
           });
           return;
         }
 
-        // Save meals to Supabase
-        await _saveMealsToSupabase(meals, selectedDate, user.id);
-
+        // Update UI immediately with generated meals
         setState(() {
           generatedMeals = meals;
           isLoading = false;
         });
-        print('Meal generation completed successfully!');
-      } else {
-        print('ERROR: No user found for meal generation');
-        setState(() {
-          isLoading = false;
-        });
-      }
+
+        // Database saving is disabled for now
+        // Meals are displayed but not persisted to database
+        print('✅ Meals generated and displayed (database saving disabled)');
+
+      print('✅ Meal generation completed successfully!');
     } catch (e, stackTrace) {
-      print('ERROR in meal generation: $e');
+      print('❌ ERROR in meal generation: $e');
       print('Stack trace: $stackTrace');
+      
+      // No fallback - show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate meals from API: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      
       setState(() {
         isLoading = false;
       });

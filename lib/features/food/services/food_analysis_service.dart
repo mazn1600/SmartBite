@@ -4,7 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/config/food_analysis_api_config.dart';
+import '../../../core/config/supabase_config.dart';
 import '../../../shared/models/food_analysis_models.dart';
+import '../../../shared/models/intrest_api_token.dart';
+import '../../../shared/services/intrest_token_service.dart';
 import '../../../shared/utils/error_handler.dart';
 
 /// Food Analysis Service
@@ -217,10 +220,12 @@ class FoodAnalysisService {
     };
   }
 
-  /// Stores tokens in SharedPreferences for persistence
+  /// Stores tokens in SharedPreferences and Supabase for persistence
   ///
   /// Saves access token, refresh token, and expiration timestamp.
+  /// Syncs to Supabase database if user is authenticated.
   Future<void> _storeTokens() async {
+    // Store in SharedPreferences (local fallback)
     final prefs = await SharedPreferences.getInstance();
     if (_accessToken != null) {
       await prefs.setString(
@@ -234,16 +239,64 @@ class FoodAnalysisService {
       await prefs.setInt(
           FoodAnalysisApiConfig.tokenExpiresAtKey, _tokenExpiresAt!);
     }
+
+    // Sync to Supabase database if user is authenticated
+    final userId = SupabaseConfig.userId;
+    if (userId != null &&
+        _accessToken != null &&
+        _refreshToken != null &&
+        _tokenExpiresAt != null) {
+      try {
+        await IntrestTokenService.saveTokens(
+          userId: userId,
+          accessToken: _accessToken!,
+          refreshToken: _refreshToken!,
+          expiresIn: _tokenExpiresAt!,
+        );
+        _log('StoreTokens', 'Tokens synced to Supabase database');
+      } catch (e) {
+        _log('StoreTokens', 'Warning: Failed to sync tokens to Supabase: $e',
+            isError: true);
+        // Continue - local storage still works
+      }
+    }
   }
 
-  /// Loads tokens from SharedPreferences
+  /// Loads tokens from Supabase database or SharedPreferences
   ///
   /// Restores authentication state from previous app session.
+  /// Checks Supabase first (if user is authenticated), then falls back to SharedPreferences.
   Future<void> _loadTokens() async {
+    // Try to load from Supabase first (if user is authenticated)
+    final userId = SupabaseConfig.userId;
+    if (userId != null) {
+      try {
+        final token = await IntrestTokenService.loadTokens(userId);
+        if (token != null && token.isValid) {
+          _accessToken = token.accessToken;
+          _refreshToken = token.refreshToken;
+          _tokenExpiresAt = IntrestApiToken.dateTimeToExpiresIn(token.expiresAt);
+          _log('LoadTokens', 'Tokens loaded from Supabase database');
+          return;
+        } else if (token != null && token.isExpired) {
+          _log('LoadTokens', 'Tokens in Supabase are expired, will re-authenticate');
+        }
+      } catch (e) {
+        _log('LoadTokens', 'Warning: Failed to load tokens from Supabase: $e',
+            isError: true);
+        // Fall through to SharedPreferences
+      }
+    }
+
+    // Fallback to SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString(FoodAnalysisApiConfig.accessTokenKey);
     _refreshToken = prefs.getString(FoodAnalysisApiConfig.refreshTokenKey);
     _tokenExpiresAt = prefs.getInt(FoodAnalysisApiConfig.tokenExpiresAtKey);
+
+    if (_accessToken != null) {
+      _log('LoadTokens', 'Tokens loaded from SharedPreferences');
+    }
   }
 
   /// Checks if the current token is expired
@@ -1319,16 +1372,30 @@ Original Error: $e
 
   /// Clears stored tokens (logout)
   ///
-  /// Removes all authentication tokens from memory and SharedPreferences.
+  /// Removes all authentication tokens from memory, SharedPreferences, and Supabase.
   /// Use this when user explicitly logs out or when switching accounts.
   Future<void> clearTokens() async {
     _accessToken = null;
     _refreshToken = null;
     _tokenExpiresAt = null;
 
+    // Clear from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(FoodAnalysisApiConfig.accessTokenKey);
     await prefs.remove(FoodAnalysisApiConfig.refreshTokenKey);
     await prefs.remove(FoodAnalysisApiConfig.tokenExpiresAtKey);
+
+    // Clear from Supabase database if user is authenticated
+    final userId = SupabaseConfig.userId;
+    if (userId != null) {
+      try {
+        await IntrestTokenService.clearTokens(userId);
+        _log('ClearTokens', 'Tokens cleared from Supabase database');
+      } catch (e) {
+        _log('ClearTokens', 'Warning: Failed to clear tokens from Supabase: $e',
+            isError: true);
+        // Continue - local tokens are cleared
+      }
+    }
   }
 }

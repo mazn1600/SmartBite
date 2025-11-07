@@ -111,12 +111,14 @@ smartbite/
 
 4. **Run the app**:
    ```bash
-   # Development mode
-   flutter run
+   # Development mode (keeps running - use 'r' for hot reload)
+   flutter run -d chrome
 
    # Release mode
    flutter run --release
    ```
+
+   **💡 Tip:** Keep the terminal open! Press `r` for hot reload or `R` for hot restart when you make changes. See [DEVELOPMENT_WORKFLOW.md](DEVELOPMENT_WORKFLOW.md) for detailed hot reload guide.
 
 ---
 

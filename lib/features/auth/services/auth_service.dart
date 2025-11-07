@@ -6,6 +6,7 @@ import '../../../../core/config/supabase_config.dart';
 import '../../../../shared/models/user.dart' as app_user;
 import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/utils/error_handler.dart';
+import '../../food/services/food_analysis_service.dart';
 
 /// Consolidated authentication service using Supabase
 /// Provides unified authentication interface for the app
@@ -371,6 +372,17 @@ class AuthService extends ChangeNotifier {
   Future<void> logout() async {
     try {
       _setLoading(true);
+      
+      // Clear Intrest API tokens before signing out
+      try {
+        final foodAnalysisService = FoodAnalysisService();
+        await foodAnalysisService.clearTokens();
+        debugPrint('AuthService: Intrest API tokens cleared');
+      } catch (e) {
+        debugPrint('AuthService: Warning - Failed to clear Intrest tokens: $e');
+        // Continue with logout even if token clearing fails
+      }
+      
       await SupabaseConfig.client.auth.signOut();
       _currentUser = null;
       _token = null;
@@ -465,20 +477,57 @@ class AuthService extends ChangeNotifier {
         if (supabaseUser == null) {
           return Result.error('User not authenticated');
         }
-        // Use Supabase user ID - explicitly select all columns to avoid 406 error
+        // Use Supabase user ID - try to fetch user profile from database
         try {
           debugPrint('🔍 AuthService: Fetching user profile from database...');
           final response = await SupabaseConfig.client
               .from(SupabaseTables.users)
-              .select('*')
+              .select()
               .eq('id', supabaseUser.id)
-              .single();
+              .maybeSingle(); // Use maybeSingle() instead of single() to handle missing profiles
 
-          debugPrint('✅ AuthService: User profile fetched from database');
+          if (response != null) {
+            debugPrint('✅ AuthService: User profile fetched from database');
 
-          // Map database schema to app schema
-          final user = _mapDatabaseUserToAppUser(response, supabaseUser);
-          return Result.success(user);
+            // Map database schema to app schema
+            final user = _mapDatabaseUserToAppUser(response, supabaseUser);
+            return Result.success(user);
+          } else {
+            // User profile doesn't exist - create it from Supabase metadata
+            debugPrint('ℹ️  AuthService: User profile not found, creating new profile...');
+            final metadata = supabaseUser.userMetadata ?? {};
+            final newUser = app_user.User(
+              id: supabaseUser.id,
+              email: supabaseUser.email ?? '',
+              name: metadata['name']?.toString() ??
+                  metadata['first_name']?.toString() ??
+                  'User',
+              age: metadata['age'] as int? ?? 25,
+              height: (metadata['height'] as num?)?.toDouble() ?? 170.0,
+              weight: (metadata['weight'] as num?)?.toDouble() ?? 70.0,
+              targetWeight: (metadata['target_weight'] as num?)?.toDouble(),
+              gender: metadata['gender']?.toString() ?? 'male',
+              activityLevel:
+                  metadata['activity_level']?.toString() ?? 'moderately_active',
+              goal: metadata['goal']?.toString() ?? 'maintenance',
+              allergies: List<String>.from(metadata['allergies'] ?? []),
+              foodPreferences:
+                  List<String>.from(metadata['food_preferences'] ?? []),
+              phoneNumber: metadata['phone_number']?.toString(),
+              createdAt: DateTime.parse(supabaseUser.createdAt),
+              updatedAt: DateTime.now(),
+            );
+            
+            // Try to create profile in database
+            final createResult = await createUserProfile(newUser);
+            if (createResult.isSuccess) {
+              debugPrint('✅ AuthService: User profile created in database');
+            } else {
+              debugPrint('⚠️  AuthService: Profile creation failed, but continuing with local user');
+            }
+            
+            return Result.success(newUser);
+          }
         } catch (dbError) {
           // If database query fails, fall back to creating user from Supabase metadata
           debugPrint(
@@ -571,6 +620,7 @@ class AuthService extends ChangeNotifier {
       goal: dbUser['goal']?.toString() ?? 'maintenance',
       allergies: List<String>.from(dbUser['allergies'] ?? []),
       foodPreferences: foodPreferences,
+      phoneNumber: dbUser['phone_number']?.toString(),
       createdAt: dbUser['created_at'] != null
           ? DateTime.parse(dbUser['created_at'])
           : DateTime.parse(supabaseUser.createdAt),
@@ -580,35 +630,99 @@ class AuthService extends ChangeNotifier {
     );
   }
 
-  /// Create user profile in database
+  /// Create or update user profile in database
+  /// Uses UPSERT (INSERT ... ON CONFLICT DO UPDATE) to handle existing profiles
   Future<Result<Map<String, dynamic>>> createUserProfile(
     app_user.User user,
   ) async {
     try {
+      // Map app User model to Supabase schema
       final profileData = {
         'id': user.id,
         'email': user.email,
-        'name': user.name,
-        'age': user.age,
+        'first_name': user.name.split(' ').first, // Split name into first_name
+        'last_name': user.name.split(' ').length > 1 
+            ? user.name.split(' ').sublist(1).join(' ') 
+            : '', // Rest as last_name
         'height': user.height,
         'weight': user.weight,
-        if (user.targetWeight != null) 'target_weight': user.targetWeight,
         'gender': user.gender,
         'activity_level': user.activityLevel,
         'goal': user.goal,
         'allergies': user.allergies,
-        'food_preferences': user.foodPreferences,
-        'created_at': user.createdAt.toIso8601String(),
-        'updated_at': user.updatedAt.toIso8601String(),
+        'dietary_preferences': user.foodPreferences, // Map to dietary_preferences
+        if (user.phoneNumber != null) 'phone_number': user.phoneNumber,
+        // Calculate date_of_birth from age (approximate)
+        'date_of_birth': DateTime.now()
+            .subtract(Duration(days: user.age * 365))
+            .toIso8601String()
+            .split('T')[0], // Date only
+        'updated_at': DateTime.now().toIso8601String(),
       };
 
-      await SupabaseConfig.client
+      // Check if profile already exists
+      final existing = await SupabaseConfig.client
           .from(SupabaseTables.users)
-          .insert(profileData);
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      return Result.success(profileData);
+      Map<String, dynamic> response;
+
+      if (existing != null) {
+        // Profile exists - UPDATE it
+        debugPrint('ℹ️  AuthService: User profile exists, updating...');
+        
+        // Don't update created_at if profile already exists
+        final updateData = Map<String, dynamic>.from(profileData);
+        updateData.remove('created_at'); // Keep original created_at
+        
+        response = await SupabaseConfig.client
+            .from(SupabaseTables.users)
+            .update(updateData)
+            .eq('id', user.id)
+            .select()
+            .single();
+        
+        debugPrint('✅ AuthService: User profile updated successfully');
+      } else {
+        // Profile doesn't exist - INSERT it
+        debugPrint('ℹ️  AuthService: Creating new user profile...');
+        
+        // Add created_at only for new profiles
+        final insertData = Map<String, dynamic>.from(profileData);
+        insertData['created_at'] = user.createdAt.toIso8601String();
+        
+        response = await SupabaseConfig.client
+            .from(SupabaseTables.users)
+            .insert(insertData)
+            .select()
+            .single();
+        
+        debugPrint('✅ AuthService: User profile created successfully');
+      }
+
+      return Result.success(response);
     } catch (e) {
-      return Result.error('Failed to create user profile: ${e.toString()}');
+      debugPrint('❌ AuthService: Failed to create/update user profile: $e');
+      
+      // If it's a duplicate key error, try to fetch existing profile
+      if (e.toString().contains('duplicate key') || e.toString().contains('23505')) {
+        debugPrint('ℹ️  AuthService: Duplicate key detected, fetching existing profile...');
+        try {
+          final existing = await SupabaseConfig.client
+              .from(SupabaseTables.users)
+              .select()
+              .eq('id', user.id)
+              .single();
+          debugPrint('✅ AuthService: Retrieved existing profile');
+          return Result.success(existing);
+        } catch (fetchError) {
+          debugPrint('❌ AuthService: Failed to fetch existing profile: $fetchError');
+        }
+      }
+      
+      return Result.error('Failed to create/update user profile: ${e.toString()}');
     }
   }
 

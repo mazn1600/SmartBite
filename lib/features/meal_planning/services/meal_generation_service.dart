@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../../../../shared/models/user.dart';
 import '../../../../shared/models/meal_food.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -98,25 +99,22 @@ class MealGenerationService {
         final mealCalories =
             (targetCalories * _mealCalorieDistribution[mealType]!).round();
 
-        // Try Food API first
+        // Try Food API only - no hardcoded fallback
         final apiMeal =
             await _generateMealWithFoodAPIAsync(user, mealType, mealCalories);
         if (apiMeal != null) {
           meals.add(apiMeal);
         } else {
-          // Fallback to hardcoded
-          final meal = generateSingleMeal(user, mealType);
-          if (meal != null) {
-            meals.add(meal);
-          }
+          // No fallback - return empty if API fails
+          print('⚠️ Food API failed for $mealType, skipping (no fallback)');
         }
       }
 
       return meals;
     } catch (e) {
       print('Error generating personalized meals (async): $e');
-      // Fallback to sync version
-      return generatePersonalizedMeals(user);
+      // No fallback - return empty list if API fails
+      return [];
     }
   }
 
@@ -172,26 +170,45 @@ class MealGenerationService {
       // Get diet types from user preferences
       final dietTypes = _convertUserPreferencesToDietTypes(user);
 
-      // Call full pipeline analysis
+      // Call full pipeline analysis with timeout
       final foodService = FoodAnalysisService();
-      final result = await foodService.fullPipelineAnalysis(
+      final result = await foodService
+          .fullPipelineAnalysis(
         dishName,
         dietTypes: dietTypes,
+      )
+          .timeout(
+        const Duration(seconds: 5), // Fast timeout for backend connection
+        onTimeout: () {
+          print('⚠️ Food API timeout for $mealType, using fallback');
+          // Return error result - will be handled by null check below
+          throw TimeoutException('Request timeout', const Duration(seconds: 5));
+        },
       );
 
       if (result.isSuccess && result.data != null) {
-        return _convertFullPipelineToMeal(
+        print('✅ Food API success for $mealType');
+        return convertFullPipelineToMeal(
           result.data!,
           mealType,
           targetCalories,
           user,
           dishName,
         );
+      } else {
+        print('⚠️ Food API failed for $mealType: ${result.error}');
       }
       return null;
     } catch (e) {
-      print('Error generating meal with Food API: $e');
-      return null;
+      // Catch connection errors and other exceptions
+      if (e.toString().contains('Connection') ||
+          e.toString().contains('ERR_CONNECTION') ||
+          e.toString().contains('Failed to fetch')) {
+        print('⚠️ Backend not available, using fallback for $mealType');
+      } else {
+        print('❌ Error generating meal with Food API: $e');
+      }
+      return null; // Return null to trigger fallback
     }
   }
 
@@ -306,7 +323,7 @@ class MealGenerationService {
   }
 
   /// Converts FullPipelineResponse to Meal object
-  static Meal _convertFullPipelineToMeal(
+  static Meal convertFullPipelineToMeal(
     FullPipelineResponse response,
     String mealType,
     int targetCalories,
@@ -315,15 +332,20 @@ class MealGenerationService {
   ) {
     final mealFoods = <MealFood>[];
 
-    // Extract macronutrients
-    final protein = response.macronutrients['protein'] ?? 0.0;
-    final carbs = response.macronutrients['carbohydrates'] ?? 0.0;
-    final fat = response.macronutrients['fat'] ?? 0.0;
+    // Extract macronutrients with null safety
+    final macronutrients = response.macronutrients ?? {};
+    final protein = (macronutrients['protein'] ?? 0.0).toDouble();
+    final carbs = (macronutrients['carbohydrates'] ?? 0.0).toDouble();
+    final fat = (macronutrients['fat'] ?? 0.0).toDouble();
+
+    // Ensure ingredients list exists and is not null
+    final ingredients = response.ingredients ?? [];
+    final allergens = response.allergens ?? [];
 
     // Filter allergens based on user allergies
     final safeIngredients = _filterAllergens(
-      response.ingredients,
-      response.allergens,
+      ingredients,
+      allergens,
       user.allergies,
     );
 
@@ -347,9 +369,16 @@ class MealGenerationService {
       final ingredientCarbs = carbs / safeIngredients.length;
       final ingredientFat = fat / safeIngredients.length;
 
+      // Ensure all required fields are non-null and non-empty
+      final ingredientName =
+          (ingredient.name.isEmpty) ? 'Unknown Ingredient' : ingredient.name;
+      final ingredientCategory = (ingredient.category?.isEmpty ?? true)
+          ? mealType
+          : ingredient.category!;
+
       mealFoods.add(MealFood(
-        id: 'ingredient_${ingredient.name}_${DateTime.now().millisecondsSinceEpoch}',
-        name: ingredient.name,
+        id: 'ingredient_${ingredientName}_${DateTime.now().millisecondsSinceEpoch}',
+        name: ingredientName,
         calories: ingredientCalories,
         protein: ingredientProtein,
         carbs: ingredientCarbs,
@@ -357,10 +386,9 @@ class MealGenerationService {
         fiber: nutrient?.value ?? 0.0,
         sugar: 0.0, // Extract from nutrients if available
         sodium: 0.0, // Extract from nutrients if available
-        servingSize: servingSize,
-        category: ingredient.category ?? mealType,
-        imageUrl: ImageConstants.getFoodImageByCategory(
-            ingredient.category ?? mealType),
+        servingSize: servingSize.isNotEmpty ? servingSize : '1 serving',
+        category: ingredientCategory,
+        imageUrl: ImageConstants.getFoodImageByCategory(ingredientCategory),
       ));
     }
 
@@ -422,10 +450,13 @@ class MealGenerationService {
   /// Finds nutrient data for an ingredient
   static Nutrient? _findNutrientForIngredient(
       Ingredient ingredient, List<Nutrient> nutrients) {
+    if (nutrients.isEmpty) return null;
+
     // Simple matching: look for fiber or similar nutrients
     for (final nutrient in nutrients) {
-      if (nutrient.name.toLowerCase().contains('fiber') ||
-          nutrient.name.toLowerCase().contains('dietary fiber')) {
+      final nutrientName = nutrient.name?.toLowerCase() ?? '';
+      if (nutrientName.contains('fiber') ||
+          nutrientName.contains('dietary fiber')) {
         return nutrient;
       }
     }

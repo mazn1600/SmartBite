@@ -137,9 +137,12 @@ class MealPlanService extends ChangeNotifier {
         totalCost += item.cost;
       }
 
+      // Format date as YYYY-MM-DD for Supabase date column
+      final dateString = date.toIso8601String().split('T')[0];
+      
       final mealPlanData = {
         'user_id': currentUserId,
-        'date': date.toIso8601String(),
+        'date': dateString, // Date only (YYYY-MM-DD), not datetime
         'meal_type': mealType,
         'items': items.map((item) => item.toJson()).toList(),
         'total_calories': totalCalories,
@@ -278,7 +281,7 @@ class MealPlanService extends ChangeNotifier {
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      if (date != null) updateData['date'] = date.toIso8601String();
+      if (date != null) updateData['date'] = date.toIso8601String().split('T')[0]; // Date only
       if (mealType != null) updateData['meal_type'] = mealType;
       if (notes != null) updateData['notes'] = notes;
       if (rating != null) updateData['rating'] = rating;

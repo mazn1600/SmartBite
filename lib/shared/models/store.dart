@@ -81,6 +81,7 @@ class FoodPrice {
   final double quantity;
   final bool isOnSale;
   final double? salePrice;
+  final DateTime? saleStartDate; // Added for Supabase alignment
   final DateTime? saleEndDate;
   final DateTime lastUpdated;
   final DateTime createdAt;
@@ -96,6 +97,7 @@ class FoodPrice {
     required this.quantity,
     required this.isOnSale,
     this.salePrice,
+    this.saleStartDate,
     this.saleEndDate,
     required this.lastUpdated,
     required this.createdAt,
@@ -115,6 +117,7 @@ class FoodPrice {
       'quantity': quantity,
       'isOnSale': isOnSale,
       'salePrice': salePrice,
+      'saleStartDate': saleStartDate?.toIso8601String(),
       'saleEndDate': saleEndDate?.toIso8601String(),
       'lastUpdated': lastUpdated.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
@@ -131,12 +134,23 @@ class FoodPrice {
       currency: json['currency'],
       unit: json['unit'],
       quantity: json['quantity'].toDouble(),
-      isOnSale: json['isOnSale'],
-      salePrice: json['salePrice']?.toDouble(),
+      isOnSale: json['isOnSale'] ?? json['is_on_sale'] ?? false,
+      salePrice: json['salePrice']?.toDouble() ?? json['sale_price']?.toDouble(),
+      saleStartDate: json['saleStartDate'] != null
+          ? DateTime.parse(json['saleStartDate'])
+          : json['sale_start_date'] != null
+              ? DateTime.parse(json['sale_start_date'])
+              : null,
       saleEndDate: json['saleEndDate'] != null
           ? DateTime.parse(json['saleEndDate'])
-          : null,
-      lastUpdated: DateTime.parse(json['lastUpdated']),
+          : json['sale_end_date'] != null
+              ? DateTime.parse(json['sale_end_date'])
+              : null,
+      lastUpdated: json['lastUpdated'] != null
+          ? DateTime.parse(json['lastUpdated'])
+          : json['last_updated'] != null
+              ? DateTime.parse(json['last_updated'])
+              : DateTime.now(),
       createdAt: DateTime.parse(json['createdAt']),
     );
   }

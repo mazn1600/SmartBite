@@ -5,12 +5,13 @@ class User {
   final int age;
   final double height; // in cm
   final double weight; // in kg
-  final double? targetWeight; // in kg - optional
+  final double? targetWeight; // in kg - optional (not in Supabase)
   final String gender;
   final String activityLevel;
   final String goal; // weight_loss, weight_gain, maintenance
   final List<String> allergies;
-  final List<String> foodPreferences;
+  final List<String> foodPreferences; // Maps to dietary_preferences in Supabase
+  final String? phoneNumber; // Added for Supabase alignment
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -27,6 +28,7 @@ class User {
     required this.goal,
     this.allergies = const [],
     this.foodPreferences = const [],
+    this.phoneNumber,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -95,6 +97,7 @@ class User {
       'goal': goal,
       'allergies': allergies,
       'foodPreferences': foodPreferences,
+      'phoneNumber': phoneNumber,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -118,8 +121,9 @@ class User {
       goal: json['goal'],
       allergies: List<String>.from(json['allergies'] ?? []),
       foodPreferences: List<String>.from(json['foodPreferences'] ?? []),
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      phoneNumber: json['phoneNumber'] ?? json['phone_number'],
+      createdAt: DateTime.parse(json['createdAt'] ?? json['created_at']),
+      updatedAt: DateTime.parse(json['updatedAt'] ?? json['updated_at']),
     );
   }
 
@@ -140,6 +144,7 @@ class User {
     String? goal,
     List<String>? allergies,
     List<String>? foodPreferences,
+    String? phoneNumber,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -156,6 +161,7 @@ class User {
       goal: goal ?? this.goal,
       allergies: allergies ?? this.allergies,
       foodPreferences: foodPreferences ?? this.foodPreferences,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

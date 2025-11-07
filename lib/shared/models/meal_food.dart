@@ -50,18 +50,18 @@ class MealFood {
 
   factory MealFood.fromJson(Map<String, dynamic> json) {
     return MealFood(
-      id: json['id'],
-      name: json['name'],
-      calories: json['calories'],
-      protein: json['protein'].toDouble(),
-      carbs: json['carbs'].toDouble(),
-      fat: json['fat'].toDouble(),
-      fiber: json['fiber'].toDouble(),
-      sugar: json['sugar'].toDouble(),
-      sodium: json['sodium'].toDouble(),
-      servingSize: json['servingSize'],
-      category: json['category'],
-      imageUrl: json['imageUrl'],
+      id: json['id'] ?? '',
+      name: json['name'] ?? 'Unknown Food',
+      calories: json['calories'] ?? 0,
+      protein: (json['protein'] ?? 0.0).toDouble(),
+      carbs: (json['carbs'] ?? 0.0).toDouble(),
+      fat: (json['fat'] ?? 0.0).toDouble(),
+      fiber: (json['fiber'] ?? 0.0).toDouble(),
+      sugar: (json['sugar'] ?? 0.0).toDouble(),
+      sodium: (json['sodium'] ?? 0.0).toDouble(),
+      servingSize: json['servingSize'] ?? '1 serving',
+      category: json['category'] ?? 'Unknown',
+      imageUrl: json['imageUrl'] ?? '',
     );
   }
 
